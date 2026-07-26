@@ -1,0 +1,45 @@
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.app-body {
+  display: flex;
+  flex: 1;
+}
+
+.sidebar {
+  width: 220px;
+  background: #2d3748;
+  padding: 1rem 0;
+  flex-shrink: 0;
+}
+
+.sidebar-link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.7rem 1.25rem;
+  color: #a0aec0;
+  text-decoration: none;
+  font-size: 0.9rem;
+  transition: background 0.15s, color 0.15s;
+}
+
+.sidebar-link:hover {
+  background: #4a5568;
+  color: #fff;
+}
+
+.sidebar-link.active {
+  background: #3182ce;
+  color: #fff;
+}
+
+.main-content {
+  flex: 1;
+  padding: 1.75rem;
+  background: #f7fafc;
+  overflow-y: auto;
+}

@@ -1,0 +1,72 @@
+.dashboard h1 { font-size: 1.6rem; font-weight: 700; color: #1a202c; margin: 0; }
+.dashboard-subtitle { color: #718096; margin: 0.25rem 0 1.75rem; }
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.stat-card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.25rem;
+  border-radius: 10px;
+  text-decoration: none;
+  color: inherit;
+  transition: transform 0.15s;
+}
+.stat-card:hover { transform: translateY(-2px); }
+.stat-blue { background: #ebf8ff; color: #2b6cb0; }
+.stat-orange { background: #fffaf0; color: #c05621; }
+.stat-green { background: #f0fff4; color: #276749; }
+.stat-gray { background: #f7fafc; color: #4a5568; }
+
+.stat-value { font-size: 1.75rem; font-weight: 700; line-height: 1; }
+.stat-label { font-size: 0.8rem; margin-top: 0.2rem; opacity: 0.8; }
+
+.dashboard-sections { display: flex; flex-direction: column; gap: 2rem; }
+
+.section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem; }
+.section-header h2 { font-size: 1.1rem; font-weight: 600; color: #2d3748; margin: 0; }
+.see-all { font-size: 0.85rem; color: #3182ce; text-decoration: none; }
+.see-all:hover { text-decoration: underline; }
+
+.claim-list { display: flex; flex-direction: column; gap: 0.5rem; }
+
+.claim-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.8rem 1rem;
+  background: #fff;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.15s;
+}
+.claim-row:hover { border-color: #3182ce; }
+.claim-number { font-weight: 600; font-size: 0.85rem; color: #3182ce; min-width: 100px; }
+.claim-title { flex: 1; font-size: 0.9rem; color: #2d3748; }
+.claim-assignee { font-size: 0.8rem; color: #718096; }
+
+.status-badge {
+  font-size: 0.72rem;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-weight: 600;
+  text-transform: capitalize;
+  white-space: nowrap;
+}
+.status-open { background: #bee3f8; color: #2c5282; }
+.status-in_progress { background: #fefcbf; color: #744210; }
+.status-pending_approval { background: #fed7aa; color: #7b341e; }
+.status-submitted { background: #fed7aa; color: #7b341e; }
+.status-approved { background: #c6f6d5; color: #22543d; }
+.status-rejected { background: #fed7d7; color: #742a2a; }
+.status-draft { background: #e2e8f0; color: #4a5568; }
+
+.empty-msg { color: #a0aec0; font-size: 0.9rem; padding: 1rem; }

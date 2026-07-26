@@ -1,0 +1,40 @@
+.parts-section { display: flex; flex-direction: column; gap: 1rem; }
+.parts-actions { display: flex; gap: 0.75rem; }
+.empty-parts { color: #a0aec0; font-size: 0.9rem; }
+
+.parts-list { display: flex; flex-direction: column; gap: 0.75rem; }
+
+.part-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 0.875rem 1rem;
+  background: #f7fafc;
+}
+
+.part-main { display: flex; align-items: flex-start; justify-content: space-between; }
+.part-info { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
+.part-name { font-weight: 600; font-size: 0.9rem; color: #2d3748; }
+.part-num { font-size: 0.8rem; color: #718096; background: #e2e8f0; padding: 2px 6px; border-radius: 4px; }
+.part-qty { font-size: 0.8rem; color: #718096; }
+.part-notes { font-size: 0.8rem; color: #718096; font-style: italic; }
+
+.btn-icon-danger { background: none; border: none; color: #fc8181; cursor: pointer; padding: 0.2rem; display: flex; align-items: center; }
+.btn-icon-danger:hover { color: #e53e3e; }
+
+.part-links { margin-top: 0.5rem; display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+.supplier-link { display: flex; align-items: center; gap: 0.35rem; background: #ebf8ff; border-radius: 999px; padding: 3px 10px; font-size: 0.8rem; }
+.supplier-link a { color: #2b6cb0; text-decoration: none; display: flex; align-items: center; gap: 0.25rem; }
+.supplier-link a:hover { text-decoration: underline; }
+.price-note { color: #718096; }
+.link-delete { background: none; border: none; color: #a0aec0; cursor: pointer; font-size: 1rem; padding: 0 2px; }
+.link-delete:hover { color: #e53e3e; }
+
+.add-link-btn { background: none; border: 1px dashed #cbd5e0; border-radius: 999px; color: #718096; cursor: pointer; font-size: 0.78rem; padding: 3px 10px; display: inline-flex; align-items: center; gap: 0.3rem; }
+.add-link-btn:hover { border-color: #3182ce; color: #3182ce; }
+
+.add-link-form { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 0.75rem; display: flex; flex-direction: column; gap: 0.5rem; min-width: 280px; }
+.add-link-form input { border: 1px solid #e2e8f0; border-radius: 6px; padding: 0.35rem 0.6rem; font-size: 0.85rem; }
+.add-link-btns { display: flex; gap: 0.5rem; justify-content: flex-end; }
+
+.add-part-form { border: 1px dashed #cbd5e0; border-radius: 8px; padding: 1rem; margin-top: 0.5rem; }
+.add-part-form h3 { font-size: 0.9rem; font-weight: 600; color: #4a5568; margin: 0 0 0.75rem; }

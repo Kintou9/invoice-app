@@ -1,0 +1,98 @@
+.claims-page h1 { font-size: 1.5rem; font-weight: 700; color: #1a202c; margin: 0; }
+
+.page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; }
+
+.create-form {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+.create-form h2 { font-size: 1.1rem; font-weight: 600; margin: 0 0 1rem; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+
+.search-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 1rem;
+  color: #a0aec0;
+}
+.search-bar input { border: none; outline: none; flex: 1; font-size: 0.9rem; color: #2d3748; }
+
+.claims-table-wrap { background: #fff; border-radius: 10px; border: 1px solid #e2e8f0; overflow: hidden; }
+.claims-table { width: 100%; border-collapse: collapse; }
+.claims-table th { background: #f7fafc; padding: 0.75rem 1rem; text-align: left; font-size: 0.8rem; color: #718096; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+.claims-table td { padding: 0.8rem 1rem; border-top: 1px solid #edf2f7; font-size: 0.9rem; color: #2d3748; vertical-align: middle; }
+.claims-table tr:hover td { background: #f7fafc; }
+.claim-num-link { color: #3182ce; font-weight: 600; }
+.unassigned { color: #a0aec0; }
+.empty-cell { text-align: center; color: #a0aec0; padding: 2rem !important; }
+
+/* Claim photo upload */
+.claim-photo-upload { margin-bottom: 1.25rem; }
+
+.photo-upload-btn {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 1.25rem 1rem;
+  border: 2px dashed #cbd5e0;
+  border-radius: 8px;
+  background: #f7fafc;
+  color: #4a5568;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  font-size: 0.9rem;
+}
+.photo-upload-btn:hover:not(:disabled) { border-color: #3182ce; background: #ebf8ff; color: #2b6cb0; }
+.photo-upload-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.photo-upload-btn small { font-size: 0.75rem; color: #a0aec0; }
+
+.photo-preview-wrap {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  background: #f7fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 0.75rem;
+}
+.claim-photo-preview {
+  width: 140px;
+  height: 100px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+  flex-shrink: 0;
+}
+.photo-preview-info { display: flex; flex-direction: column; gap: 0.5rem; flex: 1; }
+.photo-preview-label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.82rem;
+  color: #2b6cb0;
+  font-weight: 500;
+}
+.remove-photo-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.78rem;
+  color: #e53e3e;
+  background: none;
+  border: 1px solid #fed7d7;
+  border-radius: 5px;
+  padding: 0.25rem 0.5rem;
+  cursor: pointer;
+  width: fit-content;
+}
+.remove-photo-btn:hover { background: #fff5f5; }
