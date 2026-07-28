@@ -55,3 +55,29 @@
 .btn-success:hover { background: #22543d; }
 .btn-danger { background: #c53030; color: #fff; border: none; border-radius: 8px; padding: 0.5rem 1rem; cursor: pointer; display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.9rem; }
 .btn-danger:hover { background: #9b2c2c; }
+
+/* Claim info card */
+.claim-info-card { background: #f7fafc; border-color: #bee3f8; }
+.claim-info-grid { display: flex; flex-wrap: wrap; gap: 1.25rem; }
+.claim-info-item { display: flex; align-items: flex-start; gap: 0.6rem; color: #3182ce; min-width: 200px; }
+.claim-info-item > div { display: flex; flex-direction: column; }
+.claim-info-label { font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #718096; }
+.claim-info-value { font-size: 0.9rem; font-weight: 600; color: #2d3748; }
+.claim-info-sub { font-size: 0.8rem; color: #718096; }
+
+/* Parts header with AI button */
+.parts-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+.parts-header h2 { margin: 0; }
+.btn-sm { padding: 0.35rem 0.75rem; font-size: 0.8rem; }
+.btn-ai.btn-sm { margin-top: 0; }
+
+/* AI suggested parts */
+.suggested-parts { background: #faf5ff; border: 1px solid #d6bcfa; border-radius: 8px; padding: 0.75rem; margin-bottom: 1rem; }
+.suggested-label { font-size: 0.8rem; font-weight: 600; color: #6b46c1; margin: 0 0 0.6rem; }
+.suggested-part-item { display: flex; align-items: center; justify-content: space-between; padding: 0.5rem 0; border-top: 1px solid #e9d8fd; }
+.suggested-part-item:first-of-type { border-top: none; }
+.suggested-part-info { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; font-size: 0.85rem; }
+.suggested-part-info strong { color: #2d3748; }
+.part-num { background: #e9d8fd; color: #6b46c1; border-radius: 4px; padding: 0.1rem 0.4rem; font-size: 0.75rem; }
+.part-qty { color: #718096; font-size: 0.8rem; }
+.part-notes { color: #718096; font-size: 0.78rem; font-style: italic; width: 100%; }

@@ -63,16 +63,27 @@ router.get('/:id', authenticate, async (req, res, next) => {
 // POST /api/claims — admin/manager creates claims
 router.post('/', authenticate, authorize('admin', 'manager'), async (req, res, next) => {
   try {
-    const { claim_number, title, description, assigned_to, claim_photo_url } = req.body;
-    if (!claim_number || !title) {
-      return res.status(400).json({ error: 'claim_number and title are required' });
-    }
+    const {
+      claim_number, title, description, assigned_to, claim_photo_url,
+      customer_name, customer_phone, job_address, date_of_service,
+      type_brand, model_number, serial_number,
+    } = req.body;
+    const today = new Date();
+    const finalNumber = claim_number || `SVC-${today.getFullYear()}${String(today.getMonth()+1).padStart(2,'0')}${String(today.getDate()).padStart(2,'0')}-${Math.floor(100+Math.random()*900)}`;
+    const finalTitle = title || [type_brand, customer_name].filter(Boolean).join(' — ') || 'Service Call';
 
     const { rows } = await db.query(
-      `INSERT INTO claims (claim_number, title, description, assigned_to, created_by, claim_photo_url)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO claims
+        (claim_number, title, description, assigned_to, created_by, claim_photo_url,
+         customer_name, customer_phone, job_address, date_of_service,
+         type_brand, model_number, serial_number)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
        RETURNING *`,
-      [claim_number, title, description, assigned_to || null, req.user.id, claim_photo_url || null]
+      [
+        finalNumber, finalTitle, description, assigned_to || null, req.user.id, claim_photo_url || null,
+        customer_name || null, customer_phone || null, job_address || null,
+        date_of_service || null, type_brand || null, model_number || null, serial_number || null,
+      ]
     );
 
     res.status(201).json(rows[0]);

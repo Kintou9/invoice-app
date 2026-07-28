@@ -106,4 +106,22 @@ function getMimeType(ext) {
   return map[ext.toLowerCase()] || 'application/octet-stream';
 }
 
-module.exports = { uploadBuffer, generateSasUrl, deleteBlob, listBlobs };
+/**
+ * Download a blob by its URL and return it as a Buffer.
+ */
+async function downloadBuffer(blobUrl) {
+  const url = new URL(blobUrl);
+  const pathParts = url.pathname.split('/').filter(Boolean);
+  const containerName = pathParts[0];
+  const blobName = pathParts.slice(1).join('/');
+  const containerClient = getContainerClient(containerName);
+  const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+  const response = await blockBlobClient.download(0);
+  const chunks = [];
+  for await (const chunk of response.readableStreamBody) {
+    chunks.push(chunk);
+  }
+  return Buffer.concat(chunks);
+}
+
+module.exports = { uploadBuffer, downloadBuffer, generateSasUrl, deleteBlob, listBlobs };

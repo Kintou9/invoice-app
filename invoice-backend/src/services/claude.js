@@ -1,11 +1,11 @@
-const Anthropic = require('@anthropic-ai/sdk');
+const Anthropic = require('@anthropic-ai/sdk/index.js');
 const config = require('../config');
 
 let _client = null;
 const getClient = () => {
   if (!_client) {
-    if (!config.anthropic.apiKey || !config.anthropic.apiKey.startsWith('sk-ant-')) {
-      throw new Error('ANTHROPIC_API_KEY is missing or invalid. Get yours at console.anthropic.com');
+    if (!config.anthropic.apiKey) {
+      throw new Error('ANTHROPIC_API_KEY is missing. Get yours at console.anthropic.com');
     }
     _client = new Anthropic({ apiKey: config.anthropic.apiKey });
   }
@@ -31,9 +31,10 @@ async function extractEquipmentInfo(imageBase64, mediaType = 'image/jpeg') {
           },
           {
             type: 'text',
-            text: `You are a field service technician assistant. Look at this equipment photo and extract:
-1. Model number (look for labels, nameplates, or tags)
-2. Serial number (look for labels, nameplates, or tags)
+            text: `You are a field service technician assistant. Look at this equipment photo and extract the model number and serial number from any labels, nameplates, or tags.
+
+Model number may be labeled as: Model, Model #, Model No, MOD, M/N, MN, or similar.
+Serial number may be labeled as: Serial, Serial #, Serial No, SER, S/N, SN, or similar.
 
 Respond ONLY with valid JSON in this exact format, no other text:
 {"model_number": "...", "serial_number": "...", "confidence": "high|medium|low", "notes": "any caveats"}
@@ -45,11 +46,11 @@ If you cannot find a value, use null for that field.`,
     ],
   });
 
-  const text = response.content[0].text.trim();
+  const raw = response.content[0].text.trim().replace(/^```(?:json)?\n?/,'').replace(/\n?```$/,'');
   try {
-    return JSON.parse(text);
+    return JSON.parse(raw);
   } catch {
-    return { model_number: null, serial_number: null, confidence: 'low', notes: text };
+    return { model_number: null, serial_number: null, confidence: 'low', notes: raw };
   }
 }
 
@@ -113,9 +114,9 @@ List only the most likely needed parts (max 8). If you cannot determine specific
     ],
   });
 
-  const text = response.content[0].text.trim();
+  const raw = response.content[0].text.trim().replace(/^```(?:json)?\n?/,'').replace(/\n?```$/,'');
   try {
-    return JSON.parse(text);
+    return JSON.parse(raw);
   } catch {
     return { parts: [] };
   }
@@ -124,42 +125,62 @@ List only the most likely needed parts (max 8). If you cannot determine specific
 /**
  * Extract claim information from an insurance claim screenshot.
  */
-async function extractClaimInfo(imageBase64, mediaType = 'image/jpeg') {
-  const response = await getClient().messages.create({
-    model: 'claude-sonnet-4-6',
-    max_tokens: 512,
-    messages: [
-      {
-        role: 'user',
-        content: [
-          {
-            type: 'image',
-            source: { type: 'base64', media_type: mediaType, data: imageBase64 },
-          },
-          {
-            type: 'text',
-            text: `You are an insurance claims assistant. Look at this insurance claim document or screenshot and extract the key information.
+async function extractClaimInfo(imageBase64, mediaType = 'image/jpeg', templateBase64 = null, templateMediaType = 'image/jpeg') {
+  const content = [];
+
+  if (templateBase64) {
+    content.push({
+      type: 'image',
+      source: { type: 'base64', media_type: templateMediaType, data: templateBase64 },
+    });
+    content.push({
+      type: 'text',
+      text: 'This is the blank service form template — use it to understand the layout and identify where each field is located.',
+    });
+  }
+
+  content.push({
+    type: 'image',
+    source: { type: 'base64', media_type: mediaType, data: imageBase64 },
+  });
+  content.push({
+    type: 'text',
+    text: `You are an appliance repair service assistant. Extract all filled-in field values from this service order form.
 
 Respond ONLY with valid JSON in this exact format, no other text:
 {
-  "claim_number": "...",
-  "title": "brief description of the claim",
-  "description": "full description or notes from the claim",
+  "invoice_number": "the invoice or job number",
+  "customer_name": "customer full name",
+  "customer_phone": "home or cell phone number",
+  "date_of_service": "date in YYYY-MM-DD format or null",
+  "job_address": "full service address",
+  "type_brand": "appliance type and brand (e.g. Samsung Refrigerator)",
+  "model_number": "model number",
+  "serial_number": "serial number",
+  "nature_of_service": "description of the issue or service requested",
+  "technician": "technician name if present",
   "confidence": "high|medium|low"
 }
 
-If you cannot find a value, use null for that field. The title should be a short summary (under 100 characters).`,
-          },
-        ],
-      },
-    ],
+If you cannot find a value, use null for that field.`,
   });
 
-  const text = response.content[0].text.trim();
+  const response = await getClient().messages.create({
+    model: 'claude-sonnet-4-6',
+    max_tokens: 1024,
+    messages: [{ role: 'user', content }],
+  });
+
+  const raw = response.content[0].text.trim().replace(/^```(?:json)?\n?/,'').replace(/\n?```$/,'');
   try {
-    return JSON.parse(text);
+    return JSON.parse(raw);
   } catch {
-    return { claim_number: null, title: null, description: null, confidence: 'low' };
+    return {
+      invoice_number: null, customer_name: null, customer_phone: null,
+      date_of_service: null, job_address: null, type_brand: null,
+      model_number: null, serial_number: null, nature_of_service: null,
+      technician: null, confidence: 'low',
+    };
   }
 }
 

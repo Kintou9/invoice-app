@@ -44,7 +44,10 @@ router.get('/', authenticate, async (req, res, next) => {
 router.get('/:id', authenticate, async (req, res, next) => {
   try {
     const { rows } = await db.query(
-      `SELECT i.*, c.claim_number, c.title AS claim_title, u.name AS technician_name,
+      `SELECT i.*, c.claim_number, c.title AS claim_title,
+              c.customer_name, c.customer_phone, c.job_address,
+              c.type_brand, c.date_of_service,
+              u.name AS technician_name,
               t.name AS template_name, t.prompt_text AS template_prompt
        FROM invoices i
        JOIN claims c ON i.claim_id = c.id
@@ -103,10 +106,15 @@ router.post('/', authenticate, async (req, res, next) => {
     const technicianId = req.user.role === 'technician' ? req.user.id : (claim.assigned_to || req.user.id);
 
     const { rows } = await db.query(
-      `INSERT INTO invoices (claim_id, template_id, technician_id)
-       VALUES ($1, $2, $3)
+      `INSERT INTO invoices (claim_id, template_id, technician_id, model_number, serial_number, issue_description)
+       VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING *`,
-      [claim_id, template_id || null, technicianId]
+      [
+        claim_id, template_id || null, technicianId,
+        claim.model_number || null,
+        claim.serial_number || null,
+        claim.description || null,
+      ]
     );
 
     // Update claim status
@@ -248,13 +256,19 @@ router.post('/:id/ai/describe', authenticate, async (req, res, next) => {
     if (!rows[0]) return res.status(404).json({ error: 'Invoice not found' });
 
     const invoice = rows[0];
-    const description = await generateIssueDescription({
-      techNotes,
-      modelNumber: invoice.model_number,
-      serialNumber: invoice.serial_number,
-      claimNumber: invoice.claim_number,
-      templatePrompt: invoice.prompt_text,
-    });
+    let description;
+    try {
+      description = await generateIssueDescription({
+        techNotes,
+        modelNumber: invoice.model_number,
+        serialNumber: invoice.serial_number,
+        claimNumber: invoice.claim_number,
+        templatePrompt: invoice.prompt_text,
+      });
+    } catch (aiErr) {
+      console.error('AI describe error:', aiErr.message);
+      return res.status(500).json({ error: 'AI service unavailable — check your Anthropic API key' });
+    }
 
     await db.query(
       'UPDATE invoices SET ai_generated_description = $1, updated_at = NOW() WHERE id = $2',
@@ -274,11 +288,17 @@ router.post('/:id/ai/parts', authenticate, async (req, res, next) => {
     if (!rows[0]) return res.status(404).json({ error: 'Invoice not found' });
 
     const invoice = rows[0];
-    const result = await suggestParts({
-      issueDescription: invoice.issue_description || invoice.ai_generated_description,
-      modelNumber: invoice.model_number,
-      serialNumber: invoice.serial_number,
-    });
+    let result;
+    try {
+      result = await suggestParts({
+        issueDescription: invoice.issue_description || invoice.ai_generated_description,
+        modelNumber: invoice.model_number,
+        serialNumber: invoice.serial_number,
+      });
+    } catch (aiErr) {
+      console.error('AI parts error:', aiErr.message);
+      return res.status(500).json({ error: 'AI service unavailable — check your Anthropic API key' });
+    }
 
     res.json(result);
   } catch (err) {

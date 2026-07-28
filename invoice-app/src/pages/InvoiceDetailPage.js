@@ -4,7 +4,7 @@ import { toast } from 'react-toastify';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import PartsSection from '../components/parts/PartsSection';
-import { Camera, Sparkles, Send, CheckCircle, XCircle, Upload } from 'lucide-react';
+import { Camera, Sparkles, Send, CheckCircle, XCircle, Upload, User, MapPin, Wrench } from 'lucide-react';
 import './InvoiceDetailPage.css';
 
 export default function InvoiceDetailPage() {
@@ -17,10 +17,12 @@ export default function InvoiceDetailPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
+  const [aiPartsLoading, setAiPartsLoading] = useState(false);
   const [photoLoading, setPhotoLoading] = useState(false);
   const [managerNotes, setManagerNotes] = useState('');
   const [techNotes, setTechNotes] = useState('');
   const [form, setForm] = useState({ model_number: '', serial_number: '', issue_description: '' });
+  const [suggestedParts, setSuggestedParts] = useState([]);
 
   const isTech = user.role === 'technician';
   const isManager = user.role === 'manager' || user.role === 'admin';
@@ -30,7 +32,7 @@ export default function InvoiceDetailPage() {
     api.get(`/invoices/${id}`).then((r) => {
       setInvoice(r.data);
       setForm({
-        model_number: r.data.model_number || '',
+        model_number: r.data.model_number || r.data.type_brand || '',
         serial_number: r.data.serial_number || '',
         issue_description: r.data.issue_description || r.data.ai_generated_description || '',
       });
@@ -57,10 +59,16 @@ export default function InvoiceDetailPage() {
     try {
       const data = new FormData();
       data.append('photo', file);
-      const res = await api.post(`/upload/photo/${id}`, data, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-      toast.success(`Photo uploaded — AI extracted: model ${res.data.extracted.model_number || 'N/A'}, serial ${res.data.extracted.serial_number || 'N/A'}`);
+      const res = await api.post(`/upload/photo/${id}`, data);
+      const { extracted } = res.data;
+      if (extracted.model_number || extracted.serial_number) {
+        setForm((f) => ({
+          ...f,
+          model_number: extracted.model_number || f.model_number,
+          serial_number: extracted.serial_number || f.serial_number,
+        }));
+      }
+      toast.success(`Photo uploaded — model: ${extracted.model_number || 'N/A'}, SN: ${extracted.serial_number || 'N/A'}`);
       load();
     } catch (err) {
       toast.error(err.response?.data?.error || 'Upload failed');
@@ -77,10 +85,30 @@ export default function InvoiceDetailPage() {
       const res = await api.post(`/invoices/${id}/ai/describe`, { techNotes });
       setForm((f) => ({ ...f, issue_description: res.data.description }));
       toast.success('AI description generated');
-    } catch {
-      toast.error('AI generation failed');
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'AI generation failed');
     } finally {
       setAiLoading(false);
+    }
+  };
+
+  const handleAiParts = async () => {
+    const description = form.issue_description || techNotes;
+    if (!description.trim()) { toast.error('Add an issue description first'); return; }
+    setAiPartsLoading(true);
+    try {
+      await api.patch(`/invoices/${id}`, form);
+      const res = await api.post(`/invoices/${id}/ai/parts`);
+      setSuggestedParts(res.data.parts || []);
+      if (res.data.parts?.length) {
+        toast.success(`AI suggested ${res.data.parts.length} parts`);
+      } else {
+        toast.info('No parts suggested — try adding more detail to the issue description');
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Parts suggestion failed');
+    } finally {
+      setAiPartsLoading(false);
     }
   };
 
@@ -132,17 +160,68 @@ export default function InvoiceDetailPage() {
       )}
 
       <div className="invoice-body">
+
+        {/* Customer & Job Info from claim */}
+        {(invoice.customer_name || invoice.job_address || invoice.type_brand) && (
+          <section className="card claim-info-card">
+            <h2>Service Call Info</h2>
+            <div className="claim-info-grid">
+              {invoice.customer_name && (
+                <div className="claim-info-item">
+                  <User size={15} />
+                  <div>
+                    <span className="claim-info-label">Customer</span>
+                    <span className="claim-info-value">{invoice.customer_name}</span>
+                    {invoice.customer_phone && <span className="claim-info-sub">{invoice.customer_phone}</span>}
+                  </div>
+                </div>
+              )}
+              {invoice.job_address && (
+                <div className="claim-info-item">
+                  <MapPin size={15} />
+                  <div>
+                    <span className="claim-info-label">Job Address</span>
+                    <span className="claim-info-value">{invoice.job_address}</span>
+                  </div>
+                </div>
+              )}
+              {invoice.type_brand && (
+                <div className="claim-info-item">
+                  <Wrench size={15} />
+                  <div>
+                    <span className="claim-info-label">Appliance</span>
+                    <span className="claim-info-value">{invoice.type_brand}</span>
+                    {invoice.date_of_service && (
+                      <span className="claim-info-sub">Service date: {new Date(invoice.date_of_service).toLocaleDateString()}</span>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+
         {/* Equipment Info */}
         <section className="card">
           <h2>Equipment Info</h2>
           <div className="form-row">
             <div className="form-group">
               <label>Model Number</label>
-              <input value={form.model_number} onChange={(e) => setForm({ ...form, model_number: e.target.value })} disabled={!isEditable} />
+              <input
+                value={form.model_number}
+                onChange={(e) => setForm({ ...form, model_number: e.target.value })}
+                disabled={!isEditable}
+                placeholder="Model number"
+              />
             </div>
             <div className="form-group">
               <label>Serial Number</label>
-              <input value={form.serial_number} onChange={(e) => setForm({ ...form, serial_number: e.target.value })} disabled={!isEditable} />
+              <input
+                value={form.serial_number}
+                onChange={(e) => setForm({ ...form, serial_number: e.target.value })}
+                disabled={!isEditable}
+                placeholder="Serial number"
+              />
             </div>
           </div>
 
@@ -176,7 +255,7 @@ export default function InvoiceDetailPage() {
           <h2>Issue Description</h2>
           {isEditable && (
             <div className="form-group">
-              <label>Your Notes (for AI)</label>
+              <label>Technician Notes (for AI)</label>
               <textarea
                 rows={3}
                 placeholder="Describe what you observed, symptoms, what you checked..."
@@ -208,11 +287,54 @@ export default function InvoiceDetailPage() {
 
         {/* Parts */}
         <section className="card">
-          <h2>Parts</h2>
+          <div className="parts-header">
+            <h2>Parts</h2>
+            {isEditable && (
+              <button className="btn btn-ai btn-sm" onClick={handleAiParts} disabled={aiPartsLoading}>
+                <Sparkles size={14} />
+                {aiPartsLoading ? 'Searching...' : 'AI Suggest Parts'}
+              </button>
+            )}
+          </div>
+
+          {suggestedParts.length > 0 && (
+            <div className="suggested-parts">
+              <p className="suggested-label">AI Suggestions — click to add:</p>
+              {suggestedParts.map((p, i) => (
+                <div key={i} className="suggested-part-item">
+                  <div className="suggested-part-info">
+                    <strong>{p.name}</strong>
+                    {p.part_number && <span className="part-num">#{p.part_number}</span>}
+                    <span className="part-qty">Qty: {p.quantity}</span>
+                    {p.notes && <span className="part-notes">{p.notes}</span>}
+                  </div>
+                  <button
+                    className="btn btn-sm btn-primary"
+                    onClick={async () => {
+                      try {
+                        await api.post(`/invoices/${id}/parts`, {
+                          name: p.name,
+                          part_number: p.part_number,
+                          quantity: p.quantity,
+                          notes: p.notes,
+                        });
+                        setSuggestedParts((s) => s.filter((_, idx) => idx !== i));
+                        load();
+                        toast.success('Part added');
+                      } catch { toast.error('Failed to add part'); }
+                    }}
+                  >
+                    Add
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
           <PartsSection invoiceId={id} parts={invoice.parts || []} isEditable={isEditable} onUpdate={load} />
         </section>
 
-        {/* Actions */}
+        {/* Submit */}
         {isTech && isEditable && (
           <div className="action-bar">
             <button className="btn btn-primary" onClick={handleSubmit}>
@@ -221,6 +343,7 @@ export default function InvoiceDetailPage() {
           </div>
         )}
 
+        {/* Manager Review */}
         {isManager && invoice.status === 'submitted' && (
           <section className="card review-section">
             <h2>Manager Review</h2>
@@ -229,12 +352,8 @@ export default function InvoiceDetailPage() {
               <textarea rows={3} value={managerNotes} onChange={(e) => setManagerNotes(e.target.value)} placeholder="Add notes for the technician..." />
             </div>
             <div className="review-actions">
-              <button className="btn btn-danger" onClick={handleReject}>
-                <XCircle size={16} /> Reject
-              </button>
-              <button className="btn btn-success" onClick={handleApprove}>
-                <CheckCircle size={16} /> Approve
-              </button>
+              <button className="btn btn-danger" onClick={handleReject}><XCircle size={16} /> Reject</button>
+              <button className="btn btn-success" onClick={handleApprove}><CheckCircle size={16} /> Approve</button>
             </div>
           </section>
         )}

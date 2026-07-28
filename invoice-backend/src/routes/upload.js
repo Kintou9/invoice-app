@@ -3,7 +3,7 @@ const multer = require('multer');
 const db = require('../db');
 const authenticate = require('../middleware/authenticate');
 const authorize = require('../middleware/authorize');
-const { uploadBuffer } = require('../services/azureBlob');
+const { uploadBuffer, downloadBuffer } = require('../services/azureBlob');
 const { extractEquipmentInfo, extractClaimInfo } = require('../services/claude');
 
 const router = express.Router();
@@ -36,10 +36,16 @@ router.post('/photo/:invoiceId', authenticate, upload.single('photo'), async (re
     // Upload to Azure Blob
     const blobUrl = await uploadBuffer(req.file.buffer, req.file.originalname, `photos/${invoiceId}`);
 
-    // Run AI extraction
+    // Run AI extraction — never block the upload if AI fails
     const imageBase64 = req.file.buffer.toString('base64');
     const mediaType = req.file.mimetype;
-    const extracted = await extractEquipmentInfo(imageBase64, mediaType);
+    let extracted = { model_number: null, serial_number: null, confidence: 'low' };
+    try {
+      extracted = await extractEquipmentInfo(imageBase64, mediaType);
+      console.log('Equipment extraction result:', JSON.stringify(extracted));
+    } catch (aiErr) {
+      console.warn('Equipment AI extraction skipped:', aiErr.message);
+    }
 
     // Save photo record
     const { rows } = await db.query(
@@ -55,12 +61,12 @@ router.post('/photo/:invoiceId', authenticate, upload.single('photo'), async (re
       ]
     );
 
-    // Auto-populate invoice fields if not already set
+    // Auto-populate invoice fields if AI found something
     if (extracted.model_number || extracted.serial_number) {
       await db.query(
         `UPDATE invoices SET
-          model_number = COALESCE(model_number, $1),
-          serial_number = COALESCE(serial_number, $2),
+          model_number = COALESCE(NULLIF(model_number,''), $1),
+          serial_number = COALESCE(NULLIF(serial_number,''), $2),
           updated_at = NOW()
          WHERE id = $3`,
         [extracted.model_number, extracted.serial_number, invoiceId]
@@ -132,19 +138,96 @@ router.post('/claim-photo', authenticate, authorize('admin', 'manager'), upload.
   try {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
 
-    // Upload to Azure Blob
     const blobUrl = await uploadBuffer(req.file.buffer, req.file.originalname, 'claim-photos');
 
-    // Try AI extraction — gracefully falls back if API key not set
     let extracted = { claim_number: null, title: null, description: null, confidence: 'low' };
     try {
       const imageBase64 = req.file.buffer.toString('base64');
-      extracted = await extractClaimInfo(imageBase64, req.file.mimetype);
+
+      // Load template if provided
+      let templateBase64 = null;
+      let templateMediaType = 'image/jpeg';
+      const { template_id } = req.body;
+      if (template_id) {
+        const { rows: tRows } = await db.query(
+          'SELECT blob_url, media_type FROM claim_templates WHERE id = $1 AND is_active = true',
+          [template_id]
+        );
+        if (tRows[0]) {
+          const tBuffer = await downloadBuffer(tRows[0].blob_url);
+          templateBase64 = tBuffer.toString('base64');
+          templateMediaType = tRows[0].media_type || 'image/jpeg';
+        }
+      }
+
+      const raw = await extractClaimInfo(imageBase64, req.file.mimetype, templateBase64, templateMediaType);
+      extracted = {
+        claim_number: raw.invoice_number || null,
+        title: [raw.type_brand, raw.customer_name].filter(Boolean).join(' — ') || null,
+        description: raw.nature_of_service || null,
+        customer_name: raw.customer_name || null,
+        customer_phone: raw.customer_phone || null,
+        job_address: raw.job_address || null,
+        date_of_service: raw.date_of_service || null,
+        type_brand: raw.type_brand || null,
+        model_number: raw.model_number || null,
+        serial_number: raw.serial_number || null,
+        technician: raw.technician || null,
+        confidence: raw.confidence || 'low',
+      };
     } catch (aiErr) {
       console.warn('AI extraction skipped:', aiErr.message);
     }
 
     res.status(201).json({ blob_url: blobUrl, extracted });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/upload/claim-template — admin uploads a claim form template
+router.post('/claim-template', authenticate, authorize('admin'), upload.single('template'), async (req, res, next) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+    const { name, description } = req.body;
+    if (!name) return res.status(400).json({ error: 'Template name required' });
+
+    const blobUrl = await uploadBuffer(req.file.buffer, req.file.originalname, 'claim-templates');
+
+    const { rows } = await db.query(
+      `INSERT INTO claim_templates (name, description, blob_url, media_type, uploaded_by)
+       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+      [name, description || null, blobUrl, req.file.mimetype, req.user.id]
+    );
+
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/upload/claim-templates — list active claim templates
+router.get('/claim-templates', authenticate, async (req, res, next) => {
+  try {
+    const { rows } = await db.query(
+      `SELECT id, name, description, blob_url, created_at
+       FROM claim_templates WHERE is_active = true ORDER BY created_at DESC`
+    );
+    res.json(rows);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// DELETE /api/upload/claim-template/:id — admin deletes a template
+router.delete('/claim-template/:id', authenticate, authorize('admin'), async (req, res, next) => {
+  try {
+    const { rowCount } = await db.query(
+      'UPDATE claim_templates SET is_active = false WHERE id = $1',
+      [req.params.id]
+    );
+    if (!rowCount) return res.status(404).json({ error: 'Template not found' });
+    res.status(204).send();
   } catch (err) {
     next(err);
   }

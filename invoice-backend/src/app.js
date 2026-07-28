@@ -34,7 +34,11 @@ app.use('/api/upload', uploadRoutes);
 
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  res.status(err.status || 500).json({ error: err.message || 'Internal server error' });
+  // Only allow our own expected status codes — never leak a 401 from an external API
+  // (e.g. Anthropic auth errors) which would trigger the frontend logout interceptor
+  const allowed = [400, 403, 404, 409, 422];
+  const status = allowed.includes(err.status) ? err.status : 500;
+  res.status(status).json({ error: err.message || 'Internal server error' });
 });
 
 module.exports = app;
