@@ -90,7 +90,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: production
-      url: https://invoice-app-backend.azurewebsites.net
+      url: https://invoice-app-backend-a5hwbjgua2exafdr.westus2-01.azurewebsites.net
     defaults:
       run:
         working-directory: invoice-backend
