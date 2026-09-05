@@ -81,3 +81,18 @@
 .part-num { background: #e9d8fd; color: #6b46c1; border-radius: 4px; padding: 0.1rem 0.4rem; font-size: 0.75rem; }
 .part-qty { color: #718096; font-size: 0.8rem; }
 .part-notes { color: #718096; font-size: 0.78rem; font-style: italic; width: 100%; }
+
+.part-search-links { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.3rem; width: 100%; }
+.part-search-link {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-decoration: none;
+  background: #edf2f7;
+  color: #4a5568;
+  border: 1px solid #cbd5e0;
+  transition: background 0.15s, color 0.15s;
+}
+.part-search-link:hover { background: #e2e8f0; color: #1a202c; }

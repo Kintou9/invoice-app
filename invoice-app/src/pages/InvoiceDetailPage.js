@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
@@ -10,7 +10,6 @@ import './InvoiceDetailPage.css';
 export default function InvoiceDetailPage() {
   const { id } = useParams();
   const { user } = useAuth();
-  const navigate = useNavigate();
   const photoInputRef = useRef(null);
 
   const [invoice, setInvoice] = useState(null);
@@ -38,6 +37,8 @@ export default function InvoiceDetailPage() {
       });
     }).finally(() => setLoading(false));
 
+  // `load` is a new function every render; adding it as a dep would re-fetch on every render.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load(); }, [id]);
 
   const handleSave = async () => {
@@ -61,15 +62,37 @@ export default function InvoiceDetailPage() {
       data.append('photo', file);
       const res = await api.post(`/upload/photo/${id}`, data);
       const { extracted } = res.data;
+
+      let updatedForm = form;
       if (extracted.model_number || extracted.serial_number) {
-        setForm((f) => ({
-          ...f,
-          model_number: extracted.model_number || f.model_number,
-          serial_number: extracted.serial_number || f.serial_number,
-        }));
+        updatedForm = {
+          ...form,
+          model_number: extracted.model_number || form.model_number,
+          serial_number: extracted.serial_number || form.serial_number,
+        };
+        setForm(updatedForm);
+        await api.patch(`/invoices/${id}`, updatedForm);
       }
+
       toast.success(`Photo uploaded — model: ${extracted.model_number || 'N/A'}, SN: ${extracted.serial_number || 'N/A'}`);
       load();
+
+      // Auto-suggest parts if there's a description to work from
+      const description = updatedForm.issue_description;
+      if (description?.trim()) {
+        setAiPartsLoading(true);
+        try {
+          const partsRes = await api.post(`/invoices/${id}/ai/parts`);
+          setSuggestedParts(partsRes.data.parts || []);
+          if (partsRes.data.parts?.length) {
+            toast.success(`AI suggested ${partsRes.data.parts.length} parts`);
+          }
+        } catch {
+          // silently skip — user can still click AI Suggest Parts manually
+        } finally {
+          setAiPartsLoading(false);
+        }
+      }
     } catch (err) {
       toast.error(err.response?.data?.error || 'Upload failed');
     } finally {
@@ -299,14 +322,29 @@ export default function InvoiceDetailPage() {
 
           {suggestedParts.length > 0 && (
             <div className="suggested-parts">
-              <p className="suggested-label">AI Suggestions — click to add:</p>
-              {suggestedParts.map((p, i) => (
+              <p className="suggested-label">AI Suggestions — search or add to invoice:</p>
+              {suggestedParts.map((p, i) => {
+                const q = encodeURIComponent(`${p.name}${p.part_number ? ' ' + p.part_number : ''}`);
+                const searches = [
+                  { label: 'Google', url: `https://www.google.com/search?q=${q}&tbm=shop` },
+                  { label: 'Amazon', url: `https://www.amazon.com/s?k=${q}` },
+                  { label: 'eBay', url: `https://www.ebay.com/sch/i.html?_nkw=${q}` },
+                  { label: 'RepairClinic', url: `https://www.repairclinic.com/Search?q=${q}` },
+                ];
+                return (
                 <div key={i} className="suggested-part-item">
                   <div className="suggested-part-info">
                     <strong>{p.name}</strong>
                     {p.part_number && <span className="part-num">#{p.part_number}</span>}
                     <span className="part-qty">Qty: {p.quantity}</span>
                     {p.notes && <span className="part-notes">{p.notes}</span>}
+                    <div className="part-search-links">
+                      {searches.map((s) => (
+                        <a key={s.label} href={s.url} target="_blank" rel="noreferrer" className="part-search-link">
+                          {s.label}
+                        </a>
+                      ))}
+                    </div>
                   </div>
                   <button
                     className="btn btn-sm btn-primary"
@@ -327,7 +365,8 @@ export default function InvoiceDetailPage() {
                     Add
                   </button>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
 
