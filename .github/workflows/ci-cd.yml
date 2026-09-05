@@ -45,9 +45,11 @@ jobs:
         env:
           CI: true
           # Baked into the static bundle at build time. Points at the deployed
-          # backend App Service — override via the FRONTEND_API_URL repo variable
-          # (Settings > Secrets and variables > Actions > Variables).
-          REACT_APP_API_URL: ${{ vars.FRONTEND_API_URL || 'https://invoice-app-backend.azurewebsites.net/api' }}
+          # backend App Service's actual assigned hostname — override via the
+          # FRONTEND_API_URL repo variable (Settings > Secrets and variables >
+          # Actions > Variables) if the backend is ever recreated with a
+          # different hostname.
+          REACT_APP_API_URL: ${{ vars.FRONTEND_API_URL || 'https://invoice-app-backend-a5hwbjgua2exafdr.westus2-01.azurewebsites.net/api' }}
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
@@ -119,7 +121,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: production
-      url: https://invoice-app-frontend.azurewebsites.net
+      url:  invoice-app-frontend-eeduhwdgfncffkfw.westus2-01.azurewebsites.net
     steps:
       - uses: actions/download-artifact@v4
         with:
