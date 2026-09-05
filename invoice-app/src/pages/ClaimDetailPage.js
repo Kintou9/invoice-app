@@ -1,14 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import { Plus, FileText } from 'lucide-react';
 import './InvoiceDetailPage.css';
 
 export default function ClaimDetailPage() {
   const { id } = useParams();
-  const { user } = useAuth();
   const [claim, setClaim] = useState(null);
   const [invoices, setInvoices] = useState([]);
   const [templates, setTemplates] = useState([]);
