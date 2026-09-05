@@ -19,14 +19,14 @@ different ones) and a resource group, then, via the Azure CLI:
 ```bash
 az group create --name invoice-app-rg --location eastus
 
-# Backend — Node 20 Linux plan
+# Backend — Node 22 LTS Linux plan
 az appservice plan create --name invoice-app-plan --resource-group invoice-app-rg --is-linux --sku B1
 az webapp create --name invoice-app-backend --resource-group invoice-app-rg \
-  --plan invoice-app-plan --runtime "NODE:20-lts"
+  --plan invoice-app-plan --runtime "NODE:22-lts"
 
-# Frontend — same plan, also Node 20 (serves the static build via `serve`)
+# Frontend — same plan, also Node 22 LTS (serves the static build via `serve`)
 az webapp create --name invoice-app-frontend --resource-group invoice-app-rg \
-  --plan invoice-app-plan --runtime "NODE:20-lts"
+  --plan invoice-app-plan --runtime "NODE:22-lts"
 az webapp config set --name invoice-app-frontend --resource-group invoice-app-rg \
   --startup-file "pm2 serve /home/site/wwwroot --no-daemon --spa"
 ```
