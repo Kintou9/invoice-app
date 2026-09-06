@@ -38,13 +38,6 @@ app.use(express.urlencoded({ extended: true }));
 
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
-// TEMPORARY — diagnosing a CORS issue live, remove once resolved.
-app.get('/_debug/cors', (req, res) => res.json({
-  rawFrontendUrl: config.frontendUrl,
-  computedAllowedOrigin: allowedOrigin,
-  requestOrigin: req.headers.origin || null,
-}));
-
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/claims', claimRoutes);
