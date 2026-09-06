@@ -121,7 +121,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: production
-      url:  invoice-app-frontend-eeduhwdgfncffkfw.westus2-01.azurewebsites.net
+      url:  https://invoice-app-frontend-eeduhwdgfncffkfw.westus2-01.azurewebsites.net
     steps:
       - uses: actions/download-artifact@v4
         with:
