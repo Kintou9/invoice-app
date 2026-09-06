@@ -32,3 +32,20 @@
   flex-direction: column;
   gap: 1.25rem;
 }
+
+.login-switch {
+  text-align: center;
+  margin: 1.5rem 0 0;
+  color: #718096;
+  font-size: 0.9rem;
+}
+
+.login-switch a {
+  color: #3182ce;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.login-switch a:hover {
+  text-decoration: underline;
+}

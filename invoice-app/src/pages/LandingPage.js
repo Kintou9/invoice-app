@@ -56,9 +56,14 @@ export default function LandingPage() {
             <Wrench size={20} />
             <span>Trackly</span>
           </div>
-          <button className="landing-signin-btn" onClick={() => navigate('/login')}>
-            Sign In <ArrowRight size={15} />
-          </button>
+          <div className="landing-nav-actions">
+            <button className="landing-signup-btn" onClick={() => navigate('/register')}>
+              Create Login
+            </button>
+            <button className="landing-signin-btn" onClick={() => navigate('/login')}>
+              Sign In <ArrowRight size={15} />
+            </button>
+          </div>
         </div>
       </header>
 

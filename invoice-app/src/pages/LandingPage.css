@@ -32,6 +32,11 @@
   font-size: 1rem;
   color: #2b6cb0;
 }
+.landing-nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
 .landing-signin-btn {
   display: flex;
   align-items: center;
@@ -47,6 +52,17 @@
   transition: background 0.15s, color 0.15s;
 }
 .landing-signin-btn:hover { background: #3182ce; color: #fff; }
+.landing-signup-btn {
+  background: none;
+  border: none;
+  color: #4a5568;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0.45rem 0.25rem;
+  transition: color 0.15s;
+}
+.landing-signup-btn:hover { color: #3182ce; }
 
 /* Hero */
 .landing-hero {

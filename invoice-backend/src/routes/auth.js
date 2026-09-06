@@ -7,6 +7,39 @@ const authenticate = require('../middleware/authenticate');
 
 const router = express.Router();
 
+// POST /api/auth/register — public self-signup, always created as a technician
+router.post('/register', async (req, res, next) => {
+  try {
+    const { name, email, password } = req.body;
+    if (!name || !email || !password) {
+      return res.status(400).json({ error: 'Name, email, and password required' });
+    }
+    if (password.length < 8) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters' });
+    }
+
+    const hash = await bcrypt.hash(password, 12);
+    const { rows } = await db.query(
+      `INSERT INTO users (name, email, password_hash, role, is_active)
+       VALUES ($1, $2, $3, 'technician', true)
+       RETURNING id, name, email, role`,
+      [name.trim(), email.toLowerCase().trim(), hash]
+    );
+    const user = rows[0];
+
+    const token = jwt.sign(
+      { id: user.id, email: user.email, role: user.role, name: user.name },
+      config.jwtSecret,
+      { expiresIn: config.jwtExpiresIn }
+    );
+
+    res.status(201).json({ token, user });
+  } catch (err) {
+    if (err.code === '23505') return res.status(409).json({ error: 'Email already in use' });
+    next(err);
+  }
+});
+
 // POST /api/auth/login
 router.post('/login', async (req, res, next) => {
   try {

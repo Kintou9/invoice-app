@@ -8,6 +8,7 @@ import AppLayout from './components/layout/AppLayout';
 
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
+import CreateAccountPage from './pages/CreateAccountPage';
 import DashboardPage from './pages/DashboardPage';
 import ClaimsPage from './pages/ClaimsPage';
 import ClaimDetailPage from './pages/ClaimDetailPage';
@@ -22,6 +23,7 @@ function App() {
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<CreateAccountPage />} />
 
           <Route
             path="/dashboard"
