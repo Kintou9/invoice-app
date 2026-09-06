@@ -1,5 +1,6 @@
 const express = require('express');
 
+const config = require('./config');
 const authRoutes = require('./routes/auth');
 const claimRoutes = require('./routes/claims');
 const invoiceRoutes = require('./routes/invoices');
@@ -9,9 +10,13 @@ const userRoutes = require('./routes/users');
 
 const app = express();
 
+const allowedOrigin = config.frontendUrl ? config.frontendUrl.replace(/\/$/, '') : null;
+
 app.use((req, res, next) => {
   const origin = req.headers.origin;
-  if (!origin || origin.startsWith('http://localhost:')) {
+  const isLocalhost = origin && origin.startsWith('http://localhost:');
+  const isConfiguredFrontend = origin && allowedOrigin && origin === allowedOrigin;
+  if (!origin || isLocalhost || isConfiguredFrontend) {
     res.header('Access-Control-Allow-Origin', origin || '*');
     res.header('Access-Control-Allow-Credentials', 'true');
     res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
