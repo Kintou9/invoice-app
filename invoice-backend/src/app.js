@@ -10,7 +10,15 @@ const userRoutes = require('./routes/users');
 
 const app = express();
 
-const allowedOrigin = config.frontendUrl ? config.frontendUrl.replace(/\/$/, '') : null;
+// Normalize FRONTEND_URL defensively: tolerate a missing scheme (bare
+// hostname), surrounding whitespace, and a trailing slash, so a small
+// App Setting typo doesn't silently CORS-block every request in prod.
+const normalizeOrigin = (value) => {
+  if (!value) return null;
+  const trimmed = value.trim().replace(/\/$/, '');
+  return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+};
+const allowedOrigin = normalizeOrigin(config.frontendUrl);
 
 app.use((req, res, next) => {
   const origin = req.headers.origin;
