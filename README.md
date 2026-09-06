@@ -1,4 +1,6 @@
 # invoice-app
+[![CI/CD](https://github.com/Kintou9/invoice-app/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/Kintou9/invoice-app/actions/workflows/ci-cd.yml)
+
 Invoice App
 
 A full-stack invoice and claims management system built for a small appliance repair business — replacing a paper-based workflow with a digital system for tracking invoices, worker claims, and parts requests.
@@ -31,3 +33,13 @@ Multer for file upload handling
 pdf-lib for PDF generation
 Azure Blob Storage SDK for file storage
 Anthropic SDK (Claude API) for AI-assisted features
+
+CI/CD
+
+Automated via GitHub Actions (.github/workflows/ci-cd.yml)
+Every push and pull request to main builds and tests both the frontend and backend
+A push to main additionally deploys both to Azure App Service — gated on the build succeeding, so a broken build never reaches production
+Frontend: npm ci, test, and a production build (same build used for deploy, uploaded as a workflow artifact)
+Backend: npm ci and a syntax smoke-check
+Deploy target: two Azure App Service instances (Node 22 LTS, Linux) — one for the Express API, one serving the static React build
+One-time Azure/GitHub setup steps are documented in .github/workflows/README.md
