@@ -94,19 +94,24 @@ router.post('/', authenticate, authorize('admin', 'manager'), async (req, res, n
 });
 
 // PATCH /api/claims/:id — update claim (assignment, status, etc.)
+// assigned_to is set-if-present rather than COALESCE'd: the field must
+// distinguish "not sent" (leave alone) from "sent as null" (unassign), which
+// COALESCE can't do — it would silently ignore an explicit null and leave
+// the previous assignment in place.
 router.patch('/:id', authenticate, authorize('admin', 'manager'), async (req, res, next) => {
   try {
-    const { title, description, assigned_to, status } = req.body;
+    const { title, description, status } = req.body;
+    const hasAssignedTo = Object.prototype.hasOwnProperty.call(req.body, 'assigned_to');
     const { rows } = await db.query(
       `UPDATE claims SET
         title = COALESCE($1, title),
         description = COALESCE($2, description),
-        assigned_to = COALESCE($3, assigned_to),
-        status = COALESCE($4, status),
+        assigned_to = CASE WHEN $3 THEN $4 ELSE assigned_to END,
+        status = COALESCE($5, status),
         updated_at = NOW()
-       WHERE id = $5
+       WHERE id = $6
        RETURNING *`,
-      [title, description, assigned_to, status, req.params.id]
+      [title, description, hasAssignedTo, req.body.assigned_to ?? null, status, req.params.id]
     );
     if (!rows[0]) return res.status(404).json({ error: 'Claim not found' });
     res.json(rows[0]);

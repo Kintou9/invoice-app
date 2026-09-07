@@ -23,6 +23,9 @@ export default function ClaimsPage() {
   const [templates, setTemplates] = useState([]);
   const [search, setSearch] = useState('');
   const [showForm, setShowForm] = useState(false);
+  const [statusFilter, setStatusFilter] = useState('');
+  const [workerFilter, setWorkerFilter] = useState('');
+  const [reassigningId, setReassigningId] = useState(null);
 
   const [form, setForm] = useState(EMPTY_FORM);
   const [selectedTemplateId, setSelectedTemplateId] = useState('');
@@ -146,11 +149,34 @@ export default function ClaimsPage() {
     } catch { toast.error('Failed to remove template'); }
   };
 
-  const filtered = claims.filter((c) =>
-    c.claim_number.toLowerCase().includes(search.toLowerCase()) ||
-    c.title.toLowerCase().includes(search.toLowerCase()) ||
-    (c.customer_name || '').toLowerCase().includes(search.toLowerCase())
-  );
+  const handleReassign = async (claimId, newWorkerId) => {
+    setReassigningId(claimId);
+    try {
+      const res = await api.patch(`/claims/${claimId}`, { assigned_to: newWorkerId || null });
+      const assigned_to_name = newWorkerId
+        ? technicians.find((t) => t.id === newWorkerId)?.name
+        : null;
+      setClaims((cs) => cs.map((c) => (c.id === claimId ? { ...c, ...res.data, assigned_to_name } : c)));
+      toast.success(newWorkerId ? 'Claim reassigned' : 'Claim unassigned');
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to update assignment');
+    } finally {
+      setReassigningId(null);
+    }
+  };
+
+  const filtered = claims
+    .filter((c) =>
+      c.claim_number.toLowerCase().includes(search.toLowerCase()) ||
+      c.title.toLowerCase().includes(search.toLowerCase()) ||
+      (c.customer_name || '').toLowerCase().includes(search.toLowerCase())
+    )
+    .filter((c) => !statusFilter || c.status === statusFilter)
+    .filter((c) => {
+      if (!workerFilter) return true;
+      if (workerFilter === 'unassigned') return !c.assigned_to;
+      return c.assigned_to === workerFilter;
+    });
 
   return (
     <div className="claims-page">
@@ -334,6 +360,33 @@ export default function ClaimsPage() {
             <input placeholder="Search by invoice #, title, or customer name..." value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
 
+          <div className="claims-filter-bar">
+            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+              <option value="">All statuses</option>
+              <option value="open">Open</option>
+              <option value="in_progress">In Progress</option>
+              <option value="pending_approval">Pending Approval</option>
+              <option value="approved">Approved</option>
+              <option value="rejected">Rejected</option>
+            </select>
+            {user.role !== 'technician' && (
+              <select value={workerFilter} onChange={(e) => setWorkerFilter(e.target.value)}>
+                <option value="">All workers</option>
+                <option value="unassigned">Unassigned only</option>
+                {technicians.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+              </select>
+            )}
+            {(statusFilter || workerFilter) && (
+              <button
+                type="button"
+                className="claims-filter-clear"
+                onClick={() => { setStatusFilter(''); setWorkerFilter(''); }}
+              >
+                Clear filters
+              </button>
+            )}
+          </div>
+
           {loading ? <p>Loading...</p> : (
             <div className="claims-table-wrap">
               <table className="claims-table">
@@ -354,7 +407,21 @@ export default function ClaimsPage() {
                       <td><span className="claim-num-link">{c.claim_number}</span></td>
                       <td>{c.customer_name || c.title}</td>
                       <td>{c.type_brand || <span className="unassigned">—</span>}</td>
-                      <td>{c.assigned_to_name || <span className="unassigned">Unassigned</span>}</td>
+                      <td>
+                        {user.role === 'technician' ? (
+                          c.assigned_to_name || <span className="unassigned">Unassigned</span>
+                        ) : (
+                          <select
+                            className="reassign-select"
+                            value={c.assigned_to || ''}
+                            disabled={reassigningId === c.id}
+                            onChange={(e) => handleReassign(c.id, e.target.value)}
+                          >
+                            <option value="">Unassigned</option>
+                            {technicians.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                          </select>
+                        )}
+                      </td>
                       <td><span className={`status-badge status-${c.status}`}>{c.status.replace('_', ' ')}</span></td>
                       <td>{c.date_of_service ? new Date(c.date_of_service).toLocaleDateString() : new Date(c.created_at).toLocaleDateString()}</td>
                       <td><Link to={`/claims/${c.id}`} className="btn btn-sm btn-secondary">View</Link></td>
