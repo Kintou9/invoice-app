@@ -69,23 +69,3 @@ Repo → Settings → Secrets and variables → Actions:
   `node --check` syntax smoke-check instead. Add real tests and swap the
   `test` script + workflow step when ready.
 
-- **Frontend tests don't run under CRA + react-router-dom v7.**
-  `react-scripts test` (react-scripts 5.0.1, unmaintained since ~2022) fails
-  before any test executes:
-  `Cannot find module 'react-router/dom' from 'node_modules/react-router-dom/dist/index.js'`.
-  react-router-dom v7 uses conditional `exports` (react-server /
-  development / production subpaths) that CRA's bundled Jest resolver
-  predates and can't walk — a `moduleNameMapper` for `react-router-dom`
-  alone isn't enough; the chain goes several packages deep. The workflow
-  runs the test step anyway with `continue-on-error: true` so failures are
-  visible in the log without blocking the build/deploy. Two real fixes,
-  either a deliberate call rather than something to patch around quietly:
-  1. Pin `react-router-dom` to `^6` (last version with a plain CJS/ESM
-     build old Jest resolves natively) — smaller change, but a downgrade.
-  2. Migrate off `react-scripts test` to Vitest or a current Jest config
-     (react-scripts itself is unmaintained) — more work, but the fix that
-     actually keeps pace with the rest of the stack.
-
-  The **production build** (`npm run build`) is unaffected and does need to
-  stay green — it goes through webpack/Babel, not Jest's resolver, and CI
-  does gate deploys on it.

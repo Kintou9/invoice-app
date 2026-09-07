@@ -29,16 +29,10 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # Not gating on this yet: react-scripts 5.0.1's Jest resolver can't
-      # walk react-router-dom v7's conditional exports chain (it fails with
-      # "Cannot find module 'react-router/dom'" before any test runs). See
-      # .github/workflows/README.md for remediation options. Runs anyway so
-      # the failure is visible in the log without blocking build/deploy.
       - name: Run tests
         run: npm test -- --watchAll=false
         env:
           CI: true
-        continue-on-error: true
 
       - name: Build production bundle
         run: npm run build
