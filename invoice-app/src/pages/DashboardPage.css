@@ -325,6 +325,7 @@
 .claim-number { font-weight: 600; font-size: 0.85rem; color: #3182ce; min-width: 100px; }
 .claim-title { flex: 1; font-size: 0.9rem; color: #2d3748; }
 .claim-assignee { font-size: 0.8rem; color: #718096; }
+.claim-assignee.unassigned { color: #c05621; font-weight: 600; }
 
 .status-badge {
   font-size: 0.72rem;

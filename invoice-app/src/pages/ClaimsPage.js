@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
@@ -23,8 +23,9 @@ export default function ClaimsPage() {
   const [templates, setTemplates] = useState([]);
   const [search, setSearch] = useState('');
   const [showForm, setShowForm] = useState(false);
-  const [statusFilter, setStatusFilter] = useState('');
-  const [workerFilter, setWorkerFilter] = useState('');
+  const [searchParams] = useSearchParams();
+  const [statusFilter, setStatusFilter] = useState(searchParams.get('status') || '');
+  const [workerFilter, setWorkerFilter] = useState(searchParams.get('worker') || '');
   const [reassigningId, setReassigningId] = useState(null);
 
   const [form, setForm] = useState(EMPTY_FORM);

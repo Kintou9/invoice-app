@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
-import { ClipboardList, FileText, CheckCircle, Clock, ChevronLeft, ChevronRight, Calendar, X, Plus } from 'lucide-react';
+import { ClipboardList, FileText, CheckCircle, Clock, ChevronLeft, ChevronRight, Calendar, X, Plus, AlertCircle } from 'lucide-react';
 import './DashboardPage.css';
 
 const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -215,8 +215,26 @@ export default function DashboardPage() {
   const openClaims = claims.filter((c) => c.status === 'open' || c.status === 'in_progress').length;
   const approved = invoices.filter((i) => i.status === 'approved').length;
   const myDrafts = invoices.filter((i) => i.status === 'draft').length;
+  const unassignedClaims = claims.filter((c) => !c.assigned_to);
 
   const monday = weekDays[0];
+
+  // Owner/manager see org-wide staffing and review stats; a worker's claims/
+  // invoices are already API-scoped to just their own, so the same numbers
+  // mean "mine" for them — the cards just get worker-appropriate labels.
+  const statCards = isManager
+    ? [
+        { icon: ClipboardList, label: 'Open Claims', value: openClaims, color: 'blue', to: '/claims?status=open' },
+        { icon: AlertCircle, label: 'Unassigned Claims', value: unassignedClaims.length, color: 'orange', to: '/claims?worker=unassigned' },
+        { icon: Clock, label: 'Pending Approval', value: pendingApproval, color: 'orange', to: '/invoices?status=submitted' },
+        { icon: CheckCircle, label: 'Approved', value: approved, color: 'green', to: '/invoices?status=approved' },
+      ]
+    : [
+        { icon: ClipboardList, label: 'My Open Claims', value: openClaims, color: 'blue', to: '/claims?status=open' },
+        { icon: FileText, label: 'Draft Invoices', value: myDrafts, color: 'gray', to: '/invoices?status=draft' },
+        { icon: Clock, label: 'Submitted', value: pendingApproval, color: 'orange', to: '/invoices?status=submitted' },
+        { icon: CheckCircle, label: 'Approved', value: approved, color: 'green', to: '/invoices?status=approved' },
+      ];
 
   return (
     <div className="dashboard">
@@ -284,16 +302,13 @@ export default function DashboardPage() {
 
       {/* Stat Cards */}
       <div className="stat-grid">
-        <StatCard icon={ClipboardList} label="Open Claims" value={openClaims} color="blue" to="/claims" />
-        <StatCard icon={Clock} label="Pending Approval" value={pendingApproval} color="orange" to="/invoices?status=submitted" />
-        <StatCard icon={CheckCircle} label="Approved" value={approved} color="green" to="/invoices?status=approved" />
-        <StatCard icon={FileText} label="Draft Invoices" value={myDrafts} color="gray" to="/invoices?status=draft" />
+        {statCards.map((s) => <StatCard key={s.label} {...s} />)}
       </div>
 
       <div className="dashboard-sections">
         <section>
           <div className="section-header">
-            <h2>Recent Claims</h2>
+            <h2>{isManager ? 'Recent Claims' : 'My Recent Claims'}</h2>
             <Link to="/claims" className="see-all">See all</Link>
           </div>
           <div className="claim-list">
@@ -308,6 +323,25 @@ export default function DashboardPage() {
             {claims.length === 0 && <p className="empty-msg">No claims yet.</p>}
           </div>
         </section>
+
+        {isManager && unassignedClaims.length > 0 && (
+          <section>
+            <div className="section-header">
+              <h2>Unassigned Claims</h2>
+              <Link to="/claims?worker=unassigned" className="see-all">See all</Link>
+            </div>
+            <div className="claim-list">
+              {unassignedClaims.slice(0, 5).map((c) => (
+                <Link key={c.id} to={`/claims/${c.id}`} className="claim-row">
+                  <span className="claim-number">{c.claim_number}</span>
+                  <span className="claim-title">{c.title}</span>
+                  <span className={`status-badge status-${c.status}`}>{c.status.replace('_', ' ')}</span>
+                  <span className="claim-assignee unassigned">Needs assignment</span>
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
 
         {isManager && pendingApproval > 0 && (
           <section>
