@@ -15,6 +15,7 @@ import ClaimDetailPage from './pages/ClaimDetailPage';
 import InvoicesPage from './pages/InvoicesPage';
 import InvoiceDetailPage from './pages/InvoiceDetailPage';
 import ManagerFolderPage from './pages/ManagerFolderPage';
+import UsersPage from './pages/UsersPage';
 
 function App() {
   return (
@@ -70,6 +71,14 @@ function App() {
             element={
               <ProtectedRoute roles={['admin', 'manager']}>
                 <AppLayout><ManagerFolderPage /></AppLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/users"
+            element={
+              <ProtectedRoute roles={['admin']}>
+                <AppLayout><UsersPage /></AppLayout>
               </ProtectedRoute>
             }
           />
