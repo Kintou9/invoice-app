@@ -2,7 +2,7 @@ name: CI/CD
 
 on:
   push:
-    branches: [main]
+    branches: [main, testing]
   pull_request:
     branches: [main]
 
@@ -71,17 +71,16 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # No test suite exists yet (package.json's "test" script is still the
-      # unmodified `npm init` placeholder that always exits 1). Until real
-      # tests are added, do a syntax smoke-check on every source file instead
-      # of failing the build.
+      - name: Run tests
+        run: npm test
+
       - name: Syntax smoke-check
         run: find src -name '*.js' -print0 | xargs -0 -n1 node --check
 
   # ---------- CD: backend ----------
   backend-deploy:
     name: Deploy backend to Azure App Service
-    needs: backend-build-test
+    needs: [frontend-build-test, backend-build-test]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     environment:
@@ -110,7 +109,7 @@ jobs:
   # ---------- CD: frontend ----------
   frontend-deploy:
     name: Deploy frontend to Azure App Service
-    needs: frontend-build-test
+    needs: [frontend-build-test, backend-build-test]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     environment:
