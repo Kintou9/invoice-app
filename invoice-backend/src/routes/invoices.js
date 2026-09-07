@@ -13,24 +13,24 @@ router.get('/', authenticate, async (req, res, next) => {
     const { claim_id } = req.query;
     let query, params;
 
-    if (req.user.role === 'technician') {
+    if (req.user.role === 'worker') {
       query = `
         SELECT i.*, c.claim_number, c.title AS claim_title, u.name AS technician_name
         FROM invoices i
         JOIN claims c ON i.claim_id = c.id
         LEFT JOIN users u ON i.technician_id = u.id
-        WHERE i.technician_id = $1 ${claim_id ? 'AND i.claim_id = $2' : ''}
+        WHERE i.organization_id = $1 AND i.technician_id = $2 ${claim_id ? 'AND i.claim_id = $3' : ''}
         ORDER BY i.created_at DESC`;
-      params = claim_id ? [req.user.id, claim_id] : [req.user.id];
+      params = claim_id ? [req.user.organizationId, req.user.id, claim_id] : [req.user.organizationId, req.user.id];
     } else {
       query = `
         SELECT i.*, c.claim_number, c.title AS claim_title, u.name AS technician_name
         FROM invoices i
         JOIN claims c ON i.claim_id = c.id
         LEFT JOIN users u ON i.technician_id = u.id
-        ${claim_id ? 'WHERE i.claim_id = $1' : ''}
+        WHERE i.organization_id = $1 ${claim_id ? 'AND i.claim_id = $2' : ''}
         ORDER BY i.created_at DESC`;
-      params = claim_id ? [claim_id] : [];
+      params = claim_id ? [req.user.organizationId, claim_id] : [req.user.organizationId];
     }
 
     const { rows } = await db.query(query, params);
@@ -53,16 +53,17 @@ router.get('/:id', authenticate, async (req, res, next) => {
        JOIN claims c ON i.claim_id = c.id
        LEFT JOIN users u ON i.technician_id = u.id
        LEFT JOIN invoice_templates t ON i.template_id = t.id
-       WHERE i.id = $1`,
-      [req.params.id]
+       WHERE i.id = $1 AND i.organization_id = $2`,
+      [req.params.id, req.user.organizationId]
     );
     if (!rows[0]) return res.status(404).json({ error: 'Invoice not found' });
 
-    if (req.user.role === 'technician' && rows[0].technician_id !== req.user.id) {
+    if (req.user.role === 'worker' && rows[0].technician_id !== req.user.id) {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
-    // Fetch associated photos and parts
+    // Fetch associated photos and parts — safe to scope by invoice_id alone,
+    // since the invoice itself was already confirmed to belong to this org above
     const [photosResult, partsResult] = await Promise.all([
       db.query('SELECT * FROM invoice_photos WHERE invoice_id = $1 ORDER BY uploaded_at', [req.params.id]),
       db.query(
@@ -88,29 +89,33 @@ router.get('/:id', authenticate, async (req, res, next) => {
   }
 });
 
-// POST /api/invoices — technician creates invoice for a claim
+// POST /api/invoices — worker creates invoice for a claim
 router.post('/', authenticate, async (req, res, next) => {
   try {
     const { claim_id, template_id } = req.body;
     if (!claim_id) return res.status(400).json({ error: 'claim_id is required' });
 
-    // Verify the claim is assigned to this technician (or admin/manager creating on behalf)
-    const { rows: claimRows } = await db.query('SELECT * FROM claims WHERE id = $1', [claim_id]);
+    // Verify the claim exists in this organization, and is assigned to this
+    // worker (or owner/manager creating on behalf)
+    const { rows: claimRows } = await db.query(
+      'SELECT * FROM claims WHERE id = $1 AND organization_id = $2',
+      [claim_id, req.user.organizationId]
+    );
     if (!claimRows[0]) return res.status(404).json({ error: 'Claim not found' });
 
     const claim = claimRows[0];
-    if (req.user.role === 'technician' && claim.assigned_to !== req.user.id) {
+    if (req.user.role === 'worker' && claim.assigned_to !== req.user.id) {
       return res.status(403).json({ error: 'This claim is not assigned to you' });
     }
 
-    const technicianId = req.user.role === 'technician' ? req.user.id : (claim.assigned_to || req.user.id);
+    const technicianId = req.user.role === 'worker' ? req.user.id : (claim.assigned_to || req.user.id);
 
     const { rows } = await db.query(
-      `INSERT INTO invoices (claim_id, template_id, technician_id, model_number, serial_number, issue_description)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO invoices (organization_id, claim_id, template_id, technician_id, model_number, serial_number, issue_description)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING *`,
       [
-        claim_id, template_id || null, technicianId,
+        req.user.organizationId, claim_id, template_id || null, technicianId,
         claim.model_number || null,
         claim.serial_number || null,
         claim.description || null,
@@ -133,10 +138,13 @@ router.patch('/:id', authenticate, async (req, res, next) => {
   try {
     const { model_number, serial_number, issue_description } = req.body;
 
-    const { rows: existing } = await db.query('SELECT * FROM invoices WHERE id = $1', [req.params.id]);
+    const { rows: existing } = await db.query(
+      'SELECT * FROM invoices WHERE id = $1 AND organization_id = $2',
+      [req.params.id, req.user.organizationId]
+    );
     if (!existing[0]) return res.status(404).json({ error: 'Invoice not found' });
 
-    if (req.user.role === 'technician' && existing[0].technician_id !== req.user.id) {
+    if (req.user.role === 'worker' && existing[0].technician_id !== req.user.id) {
       return res.status(403).json({ error: 'Forbidden' });
     }
     if (existing[0].status === 'approved') {
@@ -159,13 +167,16 @@ router.patch('/:id', authenticate, async (req, res, next) => {
   }
 });
 
-// POST /api/invoices/:id/submit — technician submits for manager review
+// POST /api/invoices/:id/submit — worker submits for manager review
 router.post('/:id/submit', authenticate, async (req, res, next) => {
   try {
-    const { rows: existing } = await db.query('SELECT * FROM invoices WHERE id = $1', [req.params.id]);
+    const { rows: existing } = await db.query(
+      'SELECT * FROM invoices WHERE id = $1 AND organization_id = $2',
+      [req.params.id, req.user.organizationId]
+    );
     if (!existing[0]) return res.status(404).json({ error: 'Invoice not found' });
 
-    if (req.user.role === 'technician' && existing[0].technician_id !== req.user.id) {
+    if (req.user.role === 'worker' && existing[0].technician_id !== req.user.id) {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
@@ -186,7 +197,7 @@ router.post('/:id/submit', authenticate, async (req, res, next) => {
 });
 
 // POST /api/invoices/:id/approve — manager approves
-router.post('/:id/approve', authenticate, authorize('admin', 'manager'), async (req, res, next) => {
+router.post('/:id/approve', authenticate, authorize('owner', 'manager'), async (req, res, next) => {
   try {
     const { manager_notes } = req.body;
     const { rows } = await db.query(
@@ -196,9 +207,9 @@ router.post('/:id/approve', authenticate, authorize('admin', 'manager'), async (
         reviewed_by = $2,
         reviewed_at = NOW(),
         updated_at = NOW()
-       WHERE id = $3
+       WHERE id = $3 AND organization_id = $4
        RETURNING *`,
-      [manager_notes || null, req.user.id, req.params.id]
+      [manager_notes || null, req.user.id, req.params.id, req.user.organizationId]
     );
     if (!rows[0]) return res.status(404).json({ error: 'Invoice not found' });
 
@@ -214,7 +225,7 @@ router.post('/:id/approve', authenticate, authorize('admin', 'manager'), async (
 });
 
 // POST /api/invoices/:id/reject — manager rejects
-router.post('/:id/reject', authenticate, authorize('admin', 'manager'), async (req, res, next) => {
+router.post('/:id/reject', authenticate, authorize('owner', 'manager'), async (req, res, next) => {
   try {
     const { manager_notes } = req.body;
     const { rows } = await db.query(
@@ -224,9 +235,9 @@ router.post('/:id/reject', authenticate, authorize('admin', 'manager'), async (r
         reviewed_by = $2,
         reviewed_at = NOW(),
         updated_at = NOW()
-       WHERE id = $3
+       WHERE id = $3 AND organization_id = $4
        RETURNING *`,
-      [manager_notes || null, req.user.id, req.params.id]
+      [manager_notes || null, req.user.id, req.params.id, req.user.organizationId]
     );
     if (!rows[0]) return res.status(404).json({ error: 'Invoice not found' });
 
@@ -250,8 +261,8 @@ router.post('/:id/ai/describe', authenticate, async (req, res, next) => {
        FROM invoices i
        JOIN claims c ON i.claim_id = c.id
        LEFT JOIN invoice_templates t ON i.template_id = t.id
-       WHERE i.id = $1`,
-      [req.params.id]
+       WHERE i.id = $1 AND i.organization_id = $2`,
+      [req.params.id, req.user.organizationId]
     );
     if (!rows[0]) return res.status(404).json({ error: 'Invoice not found' });
 
@@ -284,7 +295,10 @@ router.post('/:id/ai/describe', authenticate, async (req, res, next) => {
 // POST /api/invoices/:id/ai/parts — Claude suggests parts
 router.post('/:id/ai/parts', authenticate, async (req, res, next) => {
   try {
-    const { rows } = await db.query('SELECT * FROM invoices WHERE id = $1', [req.params.id]);
+    const { rows } = await db.query(
+      'SELECT * FROM invoices WHERE id = $1 AND organization_id = $2',
+      [req.params.id, req.user.organizationId]
+    );
     if (!rows[0]) return res.status(404).json({ error: 'Invoice not found' });
 
     const invoice = rows[0];

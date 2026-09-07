@@ -5,28 +5,29 @@ const authorize = require('../middleware/authorize');
 
 const router = express.Router();
 
-// GET /api/claims — role-scoped list
+// GET /api/claims — org- and role-scoped list
 router.get('/', authenticate, async (req, res, next) => {
   try {
     let query, params;
 
-    if (req.user.role === 'technician') {
+    if (req.user.role === 'worker') {
       query = `
         SELECT c.*, u.name AS assigned_to_name, cb.name AS created_by_name
         FROM claims c
         LEFT JOIN users u ON c.assigned_to = u.id
         LEFT JOIN users cb ON c.created_by = cb.id
-        WHERE c.assigned_to = $1
+        WHERE c.organization_id = $1 AND c.assigned_to = $2
         ORDER BY c.created_at DESC`;
-      params = [req.user.id];
+      params = [req.user.organizationId, req.user.id];
     } else {
       query = `
         SELECT c.*, u.name AS assigned_to_name, cb.name AS created_by_name
         FROM claims c
         LEFT JOIN users u ON c.assigned_to = u.id
         LEFT JOIN users cb ON c.created_by = cb.id
+        WHERE c.organization_id = $1
         ORDER BY c.created_at DESC`;
-      params = [];
+      params = [req.user.organizationId];
     }
 
     const { rows } = await db.query(query, params);
@@ -44,13 +45,13 @@ router.get('/:id', authenticate, async (req, res, next) => {
        FROM claims c
        LEFT JOIN users u ON c.assigned_to = u.id
        LEFT JOIN users cb ON c.created_by = cb.id
-       WHERE c.id = $1`,
-      [req.params.id]
+       WHERE c.id = $1 AND c.organization_id = $2`,
+      [req.params.id, req.user.organizationId]
     );
     if (!rows[0]) return res.status(404).json({ error: 'Claim not found' });
 
-    // Technicians can only see their own claims
-    if (req.user.role === 'technician' && rows[0].assigned_to !== req.user.id) {
+    // Workers can only see their own claims
+    if (req.user.role === 'worker' && rows[0].assigned_to !== req.user.id) {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
@@ -60,8 +61,8 @@ router.get('/:id', authenticate, async (req, res, next) => {
   }
 });
 
-// POST /api/claims — admin/manager creates claims
-router.post('/', authenticate, authorize('admin', 'manager'), async (req, res, next) => {
+// POST /api/claims — owner/manager creates claims
+router.post('/', authenticate, authorize('owner', 'manager'), async (req, res, next) => {
   try {
     const {
       claim_number, title, description, assigned_to, claim_photo_url,
@@ -74,13 +75,13 @@ router.post('/', authenticate, authorize('admin', 'manager'), async (req, res, n
 
     const { rows } = await db.query(
       `INSERT INTO claims
-        (claim_number, title, description, assigned_to, created_by, claim_photo_url,
+        (organization_id, claim_number, title, description, assigned_to, created_by, claim_photo_url,
          customer_name, customer_phone, job_address, date_of_service,
          type_brand, model_number, serial_number)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
        RETURNING *`,
       [
-        finalNumber, finalTitle, description, assigned_to || null, req.user.id, claim_photo_url || null,
+        req.user.organizationId, finalNumber, finalTitle, description, assigned_to || null, req.user.id, claim_photo_url || null,
         customer_name || null, customer_phone || null, job_address || null,
         date_of_service || null, type_brand || null, model_number || null, serial_number || null,
       ]
@@ -98,7 +99,7 @@ router.post('/', authenticate, authorize('admin', 'manager'), async (req, res, n
 // distinguish "not sent" (leave alone) from "sent as null" (unassign), which
 // COALESCE can't do — it would silently ignore an explicit null and leave
 // the previous assignment in place.
-router.patch('/:id', authenticate, authorize('admin', 'manager'), async (req, res, next) => {
+router.patch('/:id', authenticate, authorize('owner', 'manager'), async (req, res, next) => {
   try {
     const { title, description, status } = req.body;
     const hasAssignedTo = Object.prototype.hasOwnProperty.call(req.body, 'assigned_to');
@@ -109,9 +110,9 @@ router.patch('/:id', authenticate, authorize('admin', 'manager'), async (req, re
         assigned_to = CASE WHEN $3 THEN $4 ELSE assigned_to END,
         status = COALESCE($5, status),
         updated_at = NOW()
-       WHERE id = $6
+       WHERE id = $6 AND organization_id = $7
        RETURNING *`,
-      [title, description, hasAssignedTo, req.body.assigned_to ?? null, status, req.params.id]
+      [title, description, hasAssignedTo, req.body.assigned_to ?? null, status, req.params.id, req.user.organizationId]
     );
     if (!rows[0]) return res.status(404).json({ error: 'Claim not found' });
     res.json(rows[0]);
@@ -120,10 +121,13 @@ router.patch('/:id', authenticate, authorize('admin', 'manager'), async (req, re
   }
 });
 
-// DELETE /api/claims/:id — admin only
-router.delete('/:id', authenticate, authorize('admin'), async (req, res, next) => {
+// DELETE /api/claims/:id — owner only
+router.delete('/:id', authenticate, authorize('owner'), async (req, res, next) => {
   try {
-    const { rowCount } = await db.query('DELETE FROM claims WHERE id = $1', [req.params.id]);
+    const { rowCount } = await db.query(
+      'DELETE FROM claims WHERE id = $1 AND organization_id = $2',
+      [req.params.id, req.user.organizationId]
+    );
     if (!rowCount) return res.status(404).json({ error: 'Claim not found' });
     res.status(204).send();
   } catch (err) {

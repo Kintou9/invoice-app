@@ -7,7 +7,59 @@ const authenticate = require('../middleware/authenticate');
 
 const router = express.Router();
 
-// POST /api/auth/register — public self-signup, always created as a technician
+// Role/org now live on organization_members, not users. A user's "active
+// membership" is whichever org membership currently has status='active' —
+// for this foundation pass every real user has exactly one, so "the first
+// active one" is unambiguous. A disabled membership means no login access,
+// same as the old users.is_active=false behavior.
+async function getActiveMembership(userId) {
+  const { rows } = await db.query(
+    `SELECT om.id AS membership_id, om.organization_id, om.role, o.name AS organization_name
+     FROM organization_members om
+     JOIN organizations o ON o.id = om.organization_id
+     WHERE om.user_id = $1 AND om.status = 'active'
+     ORDER BY om.joined_at ASC
+     LIMIT 1`,
+    [userId]
+  );
+  return rows[0] || null;
+}
+
+// Self-service signup has no "which company" step yet (deferred to a later
+// phase) — new signups join the one existing default org as a worker.
+async function getDefaultOrganization() {
+  const { rows } = await db.query('SELECT id, name FROM organizations ORDER BY created_at ASC LIMIT 1');
+  return rows[0] || null;
+}
+
+function signToken(user, membership) {
+  return jwt.sign(
+    {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      organizationId: membership.organization_id,
+      membershipId: membership.membership_id,
+      role: membership.role,
+    },
+    config.jwtSecret,
+    { expiresIn: config.jwtExpiresIn }
+  );
+}
+
+function toUserResponse(user, membership) {
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: membership.role,
+    organizationId: membership.organization_id,
+    organizationName: membership.organization_name,
+  };
+}
+
+// POST /api/auth/register — public self-signup, always joins the default
+// organization as a worker
 router.post('/register', async (req, res, next) => {
   try {
     const { name, email, password } = req.body;
@@ -18,22 +70,30 @@ router.post('/register', async (req, res, next) => {
       return res.status(400).json({ error: 'Password must be at least 8 characters' });
     }
 
+    const org = await getDefaultOrganization();
+    if (!org) {
+      return res.status(500).json({ error: 'No organization available for signup' });
+    }
+
     const hash = await bcrypt.hash(password, 12);
     const { rows } = await db.query(
-      `INSERT INTO users (name, email, password_hash, role, is_active)
-       VALUES ($1, $2, $3, 'technician', true)
-       RETURNING id, name, email, role`,
+      `INSERT INTO users (name, email, password_hash)
+       VALUES ($1, $2, $3)
+       RETURNING id, name, email`,
       [name.trim(), email.toLowerCase().trim(), hash]
     );
     const user = rows[0];
 
-    const token = jwt.sign(
-      { id: user.id, email: user.email, role: user.role, name: user.name },
-      config.jwtSecret,
-      { expiresIn: config.jwtExpiresIn }
+    const { rows: memberRows } = await db.query(
+      `INSERT INTO organization_members (organization_id, user_id, role, status)
+       VALUES ($1, $2, 'worker', 'active')
+       RETURNING id AS membership_id, organization_id, role`,
+      [org.id, user.id]
     );
+    const membership = { ...memberRows[0], organization_name: org.name };
 
-    res.status(201).json({ token, user });
+    const token = signToken(user, membership);
+    res.status(201).json({ token, user: toUserResponse(user, membership) });
   } catch (err) {
     if (err.code === '23505') return res.status(409).json({ error: 'Email already in use' });
     next(err);
@@ -49,7 +109,7 @@ router.post('/login', async (req, res, next) => {
     }
 
     const { rows } = await db.query(
-      'SELECT * FROM users WHERE email = $1 AND is_active = true',
+      'SELECT * FROM users WHERE email = $1',
       [email.toLowerCase().trim()]
     );
     const user = rows[0];
@@ -58,30 +118,37 @@ router.post('/login', async (req, res, next) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    const token = jwt.sign(
-      { id: user.id, email: user.email, role: user.role, name: user.name },
-      config.jwtSecret,
-      { expiresIn: config.jwtExpiresIn }
-    );
+    const membership = await getActiveMembership(user.id);
+    if (!membership) {
+      // No active org membership — equivalent to the old is_active=false
+      // block, just decided per-membership instead of globally on the user.
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
 
-    res.json({
-      token,
-      user: { id: user.id, name: user.name, email: user.email, role: user.role },
-    });
+    const token = signToken(user, membership);
+    res.json({ token, user: toUserResponse(user, membership) });
   } catch (err) {
     next(err);
   }
 });
 
-// GET /api/auth/me
+// GET /api/auth/me — re-reads the membership fresh (not just the JWT
+// payload) so a role change or deactivation takes effect on next load
+// without needing to re-login.
 router.get('/me', authenticate, async (req, res, next) => {
   try {
     const { rows } = await db.query(
-      'SELECT id, name, email, role, created_at FROM users WHERE id = $1',
+      'SELECT id, name, email, created_at FROM users WHERE id = $1',
       [req.user.id]
     );
     if (!rows[0]) return res.status(404).json({ error: 'User not found' });
-    res.json(rows[0]);
+
+    const membership = await getActiveMembership(req.user.id);
+    if (!membership) {
+      return res.status(401).json({ error: 'No active organization membership' });
+    }
+
+    res.json({ ...toUserResponse(rows[0], membership), created_at: rows[0].created_at });
   } catch (err) {
     next(err);
   }

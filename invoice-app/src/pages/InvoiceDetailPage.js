@@ -23,8 +23,8 @@ export default function InvoiceDetailPage() {
   const [form, setForm] = useState({ model_number: '', serial_number: '', issue_description: '' });
   const [suggestedParts, setSuggestedParts] = useState([]);
 
-  const isTech = user.role === 'technician';
-  const isManager = user.role === 'manager' || user.role === 'admin';
+  const isTech = user.role === 'worker';
+  const isManager = user.role === 'manager' || user.role === 'owner';
   const isEditable = invoice?.status === 'draft' || invoice?.status === 'rejected';
 
   const load = () =>

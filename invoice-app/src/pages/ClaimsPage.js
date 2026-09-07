@@ -38,7 +38,7 @@ export default function ClaimsPage() {
 
   useEffect(() => {
     api.get('/claims').then((r) => setClaims(r.data)).finally(() => setLoading(false));
-    if (user.role !== 'technician') {
+    if (user.role !== 'worker') {
       api.get('/users/technicians').then((r) => setTechnicians(r.data));
       api.get('/upload/claim-templates').then((r) => setTemplates(r.data));
     }
@@ -181,9 +181,9 @@ export default function ClaimsPage() {
   return (
     <div className="claims-page">
       <div className="page-header">
-        <h1>{user.role === 'technician' ? 'My Claims' : 'All Claims'}</h1>
+        <h1>{user.role === 'worker' ? 'My Claims' : 'All Claims'}</h1>
         <div className="page-header-actions">
-          {user.role === 'admin' && (
+          {user.role === 'owner' && (
             <div className="tab-toggle">
               <button className={tab === 'claims' ? 'active' : ''} onClick={() => setTab('claims')}>Claims</button>
               <button className={tab === 'templates' ? 'active' : ''} onClick={() => setTab('templates')}>
@@ -191,7 +191,7 @@ export default function ClaimsPage() {
               </button>
             </div>
           )}
-          {user.role !== 'technician' && tab === 'claims' && (
+          {user.role !== 'worker' && tab === 'claims' && (
             <button className="btn btn-primary" onClick={() => setShowForm(!showForm)}>
               <Plus size={16} /> New Claim
             </button>
@@ -200,7 +200,7 @@ export default function ClaimsPage() {
       </div>
 
       {/* Templates tab */}
-      {tab === 'templates' && user.role === 'admin' && (
+      {tab === 'templates' && user.role === 'owner' && (
         <div className="templates-section">
           <div className="template-upload-form create-form">
             <h2>Upload Service Form Template</h2>
@@ -369,7 +369,7 @@ export default function ClaimsPage() {
               <option value="approved">Approved</option>
               <option value="rejected">Rejected</option>
             </select>
-            {user.role !== 'technician' && (
+            {user.role !== 'worker' && (
               <select value={workerFilter} onChange={(e) => setWorkerFilter(e.target.value)}>
                 <option value="">All workers</option>
                 <option value="unassigned">Unassigned only</option>
@@ -408,7 +408,7 @@ export default function ClaimsPage() {
                       <td>{c.customer_name || c.title}</td>
                       <td>{c.type_brand || <span className="unassigned">—</span>}</td>
                       <td>
-                        {user.role === 'technician' ? (
+                        {user.role === 'worker' ? (
                           c.assigned_to_name || <span className="unassigned">Unassigned</span>
                         ) : (
                           <select

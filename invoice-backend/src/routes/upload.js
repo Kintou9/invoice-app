@@ -20,16 +20,19 @@ const upload = multer({
   },
 });
 
-// POST /api/upload/photo/:invoiceId — technician uploads equipment photo, AI extracts info
+// POST /api/upload/photo/:invoiceId — worker uploads equipment photo, AI extracts info
 router.post('/photo/:invoiceId', authenticate, upload.single('photo'), async (req, res, next) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
 
     const { invoiceId } = req.params;
-    const { rows: invoiceRows } = await db.query('SELECT * FROM invoices WHERE id = $1', [invoiceId]);
+    const { rows: invoiceRows } = await db.query(
+      'SELECT * FROM invoices WHERE id = $1 AND organization_id = $2',
+      [invoiceId, req.user.organizationId]
+    );
     if (!invoiceRows[0]) return res.status(404).json({ error: 'Invoice not found' });
 
-    if (req.user.role === 'technician' && invoiceRows[0].technician_id !== req.user.id) {
+    if (req.user.role === 'worker' && invoiceRows[0].technician_id !== req.user.id) {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
@@ -79,8 +82,8 @@ router.post('/photo/:invoiceId', authenticate, upload.single('photo'), async (re
   }
 });
 
-// POST /api/upload/template — admin uploads invoice template
-router.post('/template', authenticate, authorize('admin'), upload.single('template'), async (req, res, next) => {
+// POST /api/upload/template — owner uploads invoice template
+router.post('/template', authenticate, authorize('owner'), upload.single('template'), async (req, res, next) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
 
@@ -90,10 +93,10 @@ router.post('/template', authenticate, authorize('admin'), upload.single('templa
     const blobUrl = await uploadBuffer(req.file.buffer, req.file.originalname, 'templates');
 
     const { rows } = await db.query(
-      `INSERT INTO invoice_templates (name, blob_url, prompt_text, uploaded_by)
-       VALUES ($1, $2, $3, $4)
+      `INSERT INTO invoice_templates (organization_id, name, blob_url, prompt_text, uploaded_by)
+       VALUES ($1, $2, $3, $4, $5)
        RETURNING *`,
-      [name, blobUrl, prompt_text || null, req.user.id]
+      [req.user.organizationId, name, blobUrl, prompt_text || null, req.user.id]
     );
 
     res.status(201).json(rows[0]);
@@ -106,7 +109,8 @@ router.post('/template', authenticate, authorize('admin'), upload.single('templa
 router.get('/templates', authenticate, async (req, res, next) => {
   try {
     const { rows } = await db.query(
-      'SELECT id, name, blob_url, prompt_text, created_at FROM invoice_templates WHERE is_active = true ORDER BY created_at DESC'
+      'SELECT id, name, blob_url, prompt_text, created_at FROM invoice_templates WHERE is_active = true AND organization_id = $1 ORDER BY created_at DESC',
+      [req.user.organizationId]
     );
     res.json(rows);
   } catch (err) {
@@ -115,7 +119,7 @@ router.get('/templates', authenticate, async (req, res, next) => {
 });
 
 // GET /api/upload/manager-folder — list approved invoices in manager folder
-router.get('/manager-folder', authenticate, authorize('admin', 'manager'), async (req, res, next) => {
+router.get('/manager-folder', authenticate, authorize('owner', 'manager'), async (req, res, next) => {
   try {
     const { rows } = await db.query(
       `SELECT i.id, i.filled_blob_url, i.reviewed_at, i.manager_notes,
@@ -124,8 +128,9 @@ router.get('/manager-folder', authenticate, authorize('admin', 'manager'), async
        FROM invoices i
        JOIN claims c ON i.claim_id = c.id
        JOIN users u ON i.technician_id = u.id
-       WHERE i.status = 'approved'
-       ORDER BY i.reviewed_at DESC`
+       WHERE i.status = 'approved' AND i.organization_id = $1
+       ORDER BY i.reviewed_at DESC`,
+      [req.user.organizationId]
     );
     res.json(rows);
   } catch (err) {
@@ -134,7 +139,7 @@ router.get('/manager-folder', authenticate, authorize('admin', 'manager'), async
 });
 
 // POST /api/upload/claim-photo — upload insurance claim screenshot, AI extracts claim info
-router.post('/claim-photo', authenticate, authorize('admin', 'manager'), upload.single('photo'), async (req, res, next) => {
+router.post('/claim-photo', authenticate, authorize('owner', 'manager'), upload.single('photo'), async (req, res, next) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
 
@@ -150,8 +155,8 @@ router.post('/claim-photo', authenticate, authorize('admin', 'manager'), upload.
       const { template_id } = req.body;
       if (template_id) {
         const { rows: tRows } = await db.query(
-          'SELECT blob_url, media_type FROM claim_templates WHERE id = $1 AND is_active = true',
-          [template_id]
+          'SELECT blob_url, media_type FROM claim_templates WHERE id = $1 AND is_active = true AND organization_id = $2',
+          [template_id, req.user.organizationId]
         );
         if (tRows[0]) {
           const tBuffer = await downloadBuffer(tRows[0].blob_url);
@@ -185,8 +190,8 @@ router.post('/claim-photo', authenticate, authorize('admin', 'manager'), upload.
   }
 });
 
-// POST /api/upload/claim-template — admin uploads a claim form template
-router.post('/claim-template', authenticate, authorize('admin'), upload.single('template'), async (req, res, next) => {
+// POST /api/upload/claim-template — owner uploads a claim form template
+router.post('/claim-template', authenticate, authorize('owner'), upload.single('template'), async (req, res, next) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
     const { name, description } = req.body;
@@ -195,9 +200,9 @@ router.post('/claim-template', authenticate, authorize('admin'), upload.single('
     const blobUrl = await uploadBuffer(req.file.buffer, req.file.originalname, 'claim-templates');
 
     const { rows } = await db.query(
-      `INSERT INTO claim_templates (name, description, blob_url, media_type, uploaded_by)
-       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-      [name, description || null, blobUrl, req.file.mimetype, req.user.id]
+      `INSERT INTO claim_templates (organization_id, name, description, blob_url, media_type, uploaded_by)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      [req.user.organizationId, name, description || null, blobUrl, req.file.mimetype, req.user.id]
     );
 
     res.status(201).json(rows[0]);
@@ -211,7 +216,8 @@ router.get('/claim-templates', authenticate, async (req, res, next) => {
   try {
     const { rows } = await db.query(
       `SELECT id, name, description, blob_url, created_at
-       FROM claim_templates WHERE is_active = true ORDER BY created_at DESC`
+       FROM claim_templates WHERE is_active = true AND organization_id = $1 ORDER BY created_at DESC`,
+      [req.user.organizationId]
     );
     res.json(rows);
   } catch (err) {
@@ -219,12 +225,12 @@ router.get('/claim-templates', authenticate, async (req, res, next) => {
   }
 });
 
-// DELETE /api/upload/claim-template/:id — admin deletes a template
-router.delete('/claim-template/:id', authenticate, authorize('admin'), async (req, res, next) => {
+// DELETE /api/upload/claim-template/:id — owner deletes a template
+router.delete('/claim-template/:id', authenticate, authorize('owner'), async (req, res, next) => {
   try {
     const { rowCount } = await db.query(
-      'UPDATE claim_templates SET is_active = false WHERE id = $1',
-      [req.params.id]
+      'UPDATE claim_templates SET is_active = false WHERE id = $1 AND organization_id = $2',
+      [req.params.id, req.user.organizationId]
     );
     if (!rowCount) return res.status(404).json({ error: 'Template not found' });
     res.status(204).send();

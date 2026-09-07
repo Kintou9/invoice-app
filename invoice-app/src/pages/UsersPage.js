@@ -6,7 +6,7 @@ import { Plus, UserCog } from 'lucide-react';
 import './ClaimsPage.css';
 import './UsersPage.css';
 
-const EMPTY_FORM = { name: '', email: '', password: '', role: 'technician' };
+const EMPTY_FORM = { name: '', email: '', password: '', role: 'worker' };
 
 export default function UsersPage() {
   const { user: currentUser } = useAuth();
@@ -28,7 +28,7 @@ export default function UsersPage() {
     setCreating(true);
     try {
       const res = await api.post('/users', form);
-      setUsers((u) => [{ ...res.data, is_active: true }, ...u]);
+      setUsers((u) => [res.data, ...u]);
       setShowForm(false);
       setForm(EMPTY_FORM);
       toast.success('User created');
@@ -52,12 +52,13 @@ export default function UsersPage() {
     }
   };
 
-  const handleToggleActive = async (id, isActive) => {
+  const handleToggleStatus = async (id, currentStatus) => {
     setUpdatingId(id);
     try {
-      const res = await api.patch(`/users/${id}`, { is_active: !isActive });
-      setUsers((u) => u.map((x) => (x.id === id ? { ...x, is_active: res.data.is_active } : x)));
-      toast.success(res.data.is_active ? 'User activated' : 'User deactivated');
+      const nextStatus = currentStatus === 'active' ? 'disabled' : 'active';
+      const res = await api.patch(`/users/${id}`, { status: nextStatus });
+      setUsers((u) => u.map((x) => (x.id === id ? { ...x, status: res.data.status } : x)));
+      toast.success(res.data.status === 'active' ? 'User activated' : 'User deactivated');
     } catch (err) {
       toast.error(err.response?.data?.error || 'Failed to update user');
     } finally {
@@ -95,9 +96,9 @@ export default function UsersPage() {
             <div className="form-group">
               <label>Role</label>
               <select value={form.role} onChange={setField('role')}>
-                <option value="technician">Technician</option>
+                <option value="worker">Worker</option>
                 <option value="manager">Manager</option>
-                <option value="admin">Admin</option>
+                <option value="owner">Owner</option>
               </select>
             </div>
           </div>
@@ -137,20 +138,20 @@ export default function UsersPage() {
                         disabled={isSelf || updatingId === u.id}
                         onChange={(e) => handleRoleChange(u.id, e.target.value)}
                       >
-                        <option value="technician">Technician</option>
+                        <option value="worker">Worker</option>
                         <option value="manager">Manager</option>
-                        <option value="admin">Admin</option>
+                        <option value="owner">Owner</option>
                       </select>
                     </td>
                     <td>
                       <button
                         type="button"
-                        className={`status-badge status-toggle ${u.is_active ? 'status-approved' : 'status-rejected'}`}
+                        className={`status-badge status-toggle ${u.status === 'active' ? 'status-approved' : 'status-rejected'}`}
                         disabled={isSelf || updatingId === u.id}
-                        onClick={() => handleToggleActive(u.id, u.is_active)}
+                        onClick={() => handleToggleStatus(u.id, u.status)}
                         title={isSelf ? "You can't deactivate your own account" : 'Click to toggle'}
                       >
-                        {u.is_active ? 'Active' : 'Inactive'}
+                        {u.status === 'active' ? 'Active' : u.status === 'invited' ? 'Invited' : 'Disabled'}
                       </button>
                     </td>
                     <td>{new Date(u.created_at).toLocaleDateString()}</td>

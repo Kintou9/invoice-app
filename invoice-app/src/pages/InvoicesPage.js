@@ -20,7 +20,7 @@ export default function InvoicesPage() {
   return (
     <div className="claims-page">
       <div className="page-header">
-        <h1>{user.role === 'technician' ? 'My Invoices' : 'All Invoices'}</h1>
+        <h1>{user.role === 'worker' ? 'My Invoices' : 'All Invoices'}</h1>
       </div>
 
       {loading ? <p>Loading...</p> : (

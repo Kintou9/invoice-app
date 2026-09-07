@@ -174,7 +174,7 @@ export default function DashboardPage() {
   const [weekOffset, setWeekOffset] = useState(0);
   const [calOpen, setCalOpen] = useState(false);
 
-  const isManager = user.role === 'manager' || user.role === 'admin';
+  const isManager = user.role === 'manager' || user.role === 'owner';
 
   useEffect(() => {
     Promise.all([api.get('/claims'), api.get('/invoices')])

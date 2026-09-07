@@ -5,7 +5,7 @@ import { LayoutDashboard, ClipboardList, FileText, Users, Folder, Store } from '
 import './AppLayout.css';
 
 const navItems = {
-  admin: [
+  owner: [
     { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { to: '/claims', icon: ClipboardList, label: 'Claims' },
     { to: '/invoices', icon: FileText, label: 'Invoices' },
@@ -19,7 +19,7 @@ const navItems = {
     { to: '/invoices', icon: FileText, label: 'Invoices' },
     { to: '/manager-folder', icon: Folder, label: 'Manager Folder' },
   ],
-  technician: [
+  worker: [
     { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { to: '/claims', icon: ClipboardList, label: 'My Claims' },
     { to: '/invoices', icon: FileText, label: 'My Invoices' },
