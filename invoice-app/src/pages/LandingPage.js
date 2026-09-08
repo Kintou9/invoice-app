@@ -58,7 +58,7 @@ export default function LandingPage() {
           </div>
           <div className="landing-nav-actions">
             <button className="landing-signup-btn" onClick={() => navigate('/register')}>
-              Create Login
+              Create Company
             </button>
             <button className="landing-signin-btn" onClick={() => navigate('/login')}>
               Sign In <ArrowRight size={15} />
