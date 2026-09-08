@@ -2,7 +2,7 @@
 jest.mock('../src/config', () => ({
   port: 0, frontendUrl: 'http://localhost:3000',
   jwtSecret: 'test-only-secret', jwtExpiresIn: '1h',
-  db: {}, azure: {}, anthropic: {},
+  db: {}, azure: {}, anthropic: {}, resend: {},
 }));
 jest.mock('../src/db', () => {
   const unexpected = jest.fn(() => { throw new Error('Unexpected database call'); });
@@ -17,6 +17,10 @@ jest.mock('../src/services/claude', () => {
   const unexpected = jest.fn(() => { throw new Error('Unexpected Claude call'); });
   return { extractEquipmentInfo: unexpected, generateIssueDescription: unexpected,
     suggestParts: unexpected, extractClaimInfo: unexpected };
+});
+jest.mock('../src/services/email', () => {
+  const unexpected = jest.fn(() => { throw new Error('Unexpected email send'); });
+  return { sendInviteEmail: unexpected };
 });
 
 const blocked = () => { throw new Error('Network access is forbidden in backend tests'); };

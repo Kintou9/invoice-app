@@ -2,11 +2,11 @@ import { useEffect, useState } from 'react';
 import { toast } from 'react-toastify';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
-import { Plus, UserCog } from 'lucide-react';
+import { Plus, UserCog, Send } from 'lucide-react';
 import './ClaimsPage.css';
 import './UsersPage.css';
 
-const EMPTY_FORM = { name: '', email: '', password: '', role: 'worker' };
+const EMPTY_FORM = { email: '', role: 'worker' };
 
 export default function UsersPage() {
   const { user: currentUser } = useAuth();
@@ -14,7 +14,7 @@ export default function UsersPage() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
-  const [creating, setCreating] = useState(false);
+  const [inviting, setInviting] = useState(false);
   const [updatingId, setUpdatingId] = useState(null);
 
   useEffect(() => {
@@ -23,19 +23,33 @@ export default function UsersPage() {
 
   const setField = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
 
-  const handleCreate = async (e) => {
+  const handleInvite = async (e) => {
     e.preventDefault();
-    setCreating(true);
+    setInviting(true);
     try {
       const res = await api.post('/users', form);
       setUsers((u) => [res.data, ...u]);
       setShowForm(false);
       setForm(EMPTY_FORM);
-      toast.success('User created');
+      if (res.data.emailError) toast.warning(res.data.emailError);
+      else toast.success('Invite sent');
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Failed to create user');
+      toast.error(err.response?.data?.error || 'Failed to send invite');
     } finally {
-      setCreating(false);
+      setInviting(false);
+    }
+  };
+
+  const handleResend = async (id) => {
+    setUpdatingId(id);
+    try {
+      const res = await api.post(`/users/${id}/resend-invite`);
+      if (res.data.message === 'Invite resent') toast.success(res.data.message);
+      else toast.warning(res.data.message);
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to resend invite');
+    } finally {
+      setUpdatingId(null);
     }
   };
 
@@ -71,27 +85,21 @@ export default function UsersPage() {
       <div className="page-header">
         <h1>Users</h1>
         <button className="btn btn-primary" onClick={() => setShowForm(!showForm)}>
-          <Plus size={16} /> Add User
+          <Plus size={16} /> Invite Member
         </button>
       </div>
 
       {showForm && (
-        <form className="create-form" onSubmit={handleCreate}>
-          <h2>New User</h2>
+        <form className="create-form" onSubmit={handleInvite}>
+          <h2>Invite a Member</h2>
+          <p className="template-hint">
+            They'll get an email with a link to set up their account. You don't need
+            their password — they'll choose their own.
+          </p>
           <div className="form-row">
-            <div className="form-group">
-              <label>Name</label>
-              <input value={form.name} onChange={setField('name')} placeholder="Full name" required autoFocus />
-            </div>
             <div className="form-group">
               <label>Email</label>
-              <input type="email" value={form.email} onChange={setField('email')} placeholder="you@company.com" required />
-            </div>
-          </div>
-          <div className="form-row">
-            <div className="form-group">
-              <label>Password</label>
-              <input type="password" value={form.password} onChange={setField('password')} placeholder="At least 8 characters" minLength={8} required />
+              <input type="email" value={form.email} onChange={setField('email')} placeholder="you@company.com" required autoFocus />
             </div>
             <div className="form-group">
               <label>Role</label>
@@ -104,7 +112,7 @@ export default function UsersPage() {
           </div>
           <div className="form-actions">
             <button type="button" className="btn btn-secondary" onClick={() => { setShowForm(false); setForm(EMPTY_FORM); }}>Cancel</button>
-            <button type="submit" className="btn btn-primary" disabled={creating}>{creating ? 'Creating...' : 'Create User'}</button>
+            <button type="submit" className="btn btn-primary" disabled={inviting}>{inviting ? 'Sending...' : 'Send Invite'}</button>
           </div>
         </form>
       )}
@@ -119,6 +127,7 @@ export default function UsersPage() {
                 <th>Role</th>
                 <th>Status</th>
                 <th>Joined</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
@@ -127,7 +136,7 @@ export default function UsersPage() {
                 return (
                   <tr key={u.id}>
                     <td>
-                      {u.name}
+                      {u.name || <span className="unassigned">Pending</span>}
                       {isSelf && <span className="you-badge"><UserCog size={12} /> You</span>}
                     </td>
                     <td>{u.email}</td>
@@ -154,12 +163,24 @@ export default function UsersPage() {
                         {u.status === 'active' ? 'Active' : u.status === 'invited' ? 'Invited' : 'Disabled'}
                       </button>
                     </td>
-                    <td>{new Date(u.created_at).toLocaleDateString()}</td>
+                    <td>{new Date(u.joined_at || u.created_at).toLocaleDateString()}</td>
+                    <td>
+                      {u.status === 'invited' && (
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-secondary"
+                          disabled={updatingId === u.id}
+                          onClick={() => handleResend(u.id)}
+                        >
+                          <Send size={12} /> Resend
+                        </button>
+                      )}
+                    </td>
                   </tr>
                 );
               })}
               {users.length === 0 && (
-                <tr><td colSpan={5} className="empty-cell">No users found</td></tr>
+                <tr><td colSpan={6} className="empty-cell">No users found</td></tr>
               )}
             </tbody>
           </table>
