@@ -44,6 +44,11 @@ Environment variables, add everything from `invoice-backend/.env.example`:
   `invoicedb1.postgres.database.azure.com`)
 - `AZURE_STORAGE_CONNECTION_STRING`, `AZURE_CONTAINER_NAME` (`invoices`)
 - `ANTHROPIC_API_KEY`
+- `RESEND_API_KEY`, `RESEND_FROM_EMAIL` — for team invitation emails. On the
+  free tier without a verified sending domain, `RESEND_FROM_EMAIL` must stay
+  `onboarding@resend.dev` and can only deliver to the email on the Resend
+  account itself — invites to other addresses won't arrive until a domain
+  is verified.
 - `FRONTEND_URL` — set to `https://invoice-app-frontend.azurewebsites.net`
 
 These are runtime secrets and never go in the repo or the workflow file.

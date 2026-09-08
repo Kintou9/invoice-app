@@ -120,7 +120,10 @@ router.post('/login', async (req, res, next) => {
     );
     const user = rows[0];
 
-    if (!user || !(await bcrypt.compare(password, user.password_hash))) {
+    // password_hash is null for an invited-but-not-yet-accepted user —
+    // bcrypt.compare throws on a null hash rather than just returning
+    // false, so that case has to be checked before ever calling it.
+    if (!user || !user.password_hash || !(await bcrypt.compare(password, user.password_hash))) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
@@ -155,6 +158,98 @@ router.get('/me', authenticate, async (req, res, next) => {
     }
 
     res.json({ ...toUserResponse(rows[0], membership), created_at: rows[0].created_at });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/auth/invite/:token — public, lets the accept-invite page show
+// who invited them and to which company before asking for any input.
+router.get('/invite/:token', async (req, res, next) => {
+  try {
+    const { rows } = await db.query(
+      `SELECT om.role, om.invite_expires_at, u.email, u.password_hash IS NOT NULL AS has_password, o.name AS organization_name
+       FROM organization_members om
+       JOIN users u ON u.id = om.user_id
+       JOIN organizations o ON o.id = om.organization_id
+       WHERE om.invite_token = $1 AND om.status = 'invited'`,
+      [req.params.token]
+    );
+    const invite = rows[0];
+    if (!invite) return res.status(404).json({ error: 'Invite not found or already used' });
+    if (new Date(invite.invite_expires_at) < new Date()) {
+      return res.status(410).json({ error: 'This invite has expired — ask for a new one' });
+    }
+
+    res.json({
+      email: invite.email,
+      role: invite.role,
+      organizationName: invite.organization_name,
+      hasPassword: invite.has_password,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/auth/accept-invite — public. A brand-new invitee sets their
+// name and password here. Someone who's already a user elsewhere (already
+// has a password from another org) instead confirms their identity with
+// their existing password — this never overwrites an existing password.
+router.post('/accept-invite', async (req, res, next) => {
+  try {
+    const { token, name, password } = req.body;
+    if (!token || !password) {
+      return res.status(400).json({ error: 'Token and password are required' });
+    }
+
+    const { rows } = await db.query(
+      `SELECT om.id AS membership_id, om.organization_id, om.role, om.invite_expires_at,
+              u.id AS user_id, u.email, u.password_hash, o.name AS organization_name
+       FROM organization_members om
+       JOIN users u ON u.id = om.user_id
+       JOIN organizations o ON o.id = om.organization_id
+       WHERE om.invite_token = $1 AND om.status = 'invited'`,
+      [token]
+    );
+    const invite = rows[0];
+    if (!invite) return res.status(404).json({ error: 'Invite not found or already used' });
+    if (new Date(invite.invite_expires_at) < new Date()) {
+      return res.status(410).json({ error: 'This invite has expired — ask for a new one' });
+    }
+
+    if (invite.password_hash) {
+      // Existing user from another org — verify identity, never overwrite.
+      if (!(await bcrypt.compare(password, invite.password_hash))) {
+        return res.status(401).json({ error: 'Incorrect password for this existing account' });
+      }
+    } else {
+      if (!name || password.length < 8) {
+        return res.status(400).json({ error: 'Name and a password of at least 8 characters are required' });
+      }
+      const hash = await bcrypt.hash(password, 12);
+      await db.query('UPDATE users SET name = $1, password_hash = $2, updated_at = NOW() WHERE id = $3', [
+        name.trim(), hash, invite.user_id,
+      ]);
+    }
+
+    await db.query(
+      `UPDATE organization_members SET status = 'active', invite_token = NULL, invite_expires_at = NULL
+       WHERE id = $1`,
+      [invite.membership_id]
+    );
+
+    const { rows: userRows } = await db.query('SELECT id, name, email FROM users WHERE id = $1', [invite.user_id]);
+    const user = userRows[0];
+    const membership = {
+      membership_id: invite.membership_id,
+      organization_id: invite.organization_id,
+      role: invite.role,
+      organization_name: invite.organization_name,
+    };
+
+    const jwtToken = signToken(user, membership);
+    res.json({ token: jwtToken, user: toUserResponse(user, membership) });
   } catch (err) {
     next(err);
   }

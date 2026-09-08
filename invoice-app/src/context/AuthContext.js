@@ -33,13 +33,20 @@ export function AuthProvider({ children }) {
     return res.data.user;
   };
 
+  const acceptInvite = async (token, name, password) => {
+    const res = await api.post('/auth/accept-invite', { token, name, password });
+    localStorage.setItem('token', res.data.token);
+    setUser(res.data.user);
+    return res.data.user;
+  };
+
   const logout = () => {
     localStorage.removeItem('token');
     setUser(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, register, acceptInvite, logout }}>
       {children}
     </AuthContext.Provider>
   );

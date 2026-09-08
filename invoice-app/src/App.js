@@ -9,6 +9,7 @@ import AppLayout from './components/layout/AppLayout';
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import CreateAccountPage from './pages/CreateAccountPage';
+import AcceptInvitePage from './pages/AcceptInvitePage';
 import DashboardPage from './pages/DashboardPage';
 import ClaimsPage from './pages/ClaimsPage';
 import ClaimDetailPage from './pages/ClaimDetailPage';
@@ -25,6 +26,7 @@ function App() {
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<CreateAccountPage />} />
+          <Route path="/accept-invite" element={<AcceptInvitePage />} />
 
           <Route
             path="/dashboard"
