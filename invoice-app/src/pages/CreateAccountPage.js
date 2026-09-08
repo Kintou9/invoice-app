@@ -7,7 +7,9 @@ import './LoginPage.css';
 export default function CreateAccountPage() {
   const { register } = useAuth();
   const navigate = useNavigate();
-  const [form, setForm] = useState({ name: '', email: '', password: '', confirmPassword: '' });
+  const [form, setForm] = useState({
+    organizationName: '', name: '', email: '', password: '', confirmPassword: '',
+  });
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
@@ -18,7 +20,7 @@ export default function CreateAccountPage() {
     }
     setLoading(true);
     try {
-      await register(form.name, form.email, form.password);
+      await register(form.name, form.email, form.password, form.organizationName);
       navigate('/dashboard');
     } catch (err) {
       toast.error(err.response?.data?.error || 'Account creation failed');
@@ -30,11 +32,23 @@ export default function CreateAccountPage() {
   return (
     <div className="login-page">
       <div className="login-card">
-        <h1 className="login-title">Create Account</h1>
-        <p className="login-subtitle">Sign up for a technician account</p>
+        <h1 className="login-title">Create Your Company</h1>
+        <p className="login-subtitle">Set up your organization — you'll be its owner</p>
         <form onSubmit={handleSubmit} className="login-form">
           <div className="form-group">
-            <label htmlFor="name">Name</label>
+            <label htmlFor="organizationName">Company Name</label>
+            <input
+              id="organizationName"
+              type="text"
+              value={form.organizationName}
+              onChange={(e) => setForm({ ...form, organizationName: e.target.value })}
+              placeholder="Your company's name"
+              required
+              autoFocus
+            />
+          </div>
+          <div className="form-group">
+            <label htmlFor="name">Your Name</label>
             <input
               id="name"
               type="text"
@@ -42,7 +56,6 @@ export default function CreateAccountPage() {
               onChange={(e) => setForm({ ...form, name: e.target.value })}
               placeholder="Your name"
               required
-              autoFocus
             />
           </div>
           <div className="form-group">
@@ -81,7 +94,7 @@ export default function CreateAccountPage() {
             />
           </div>
           <button type="submit" className="btn btn-primary btn-full" disabled={loading}>
-            {loading ? 'Creating account...' : 'Create Account'}
+            {loading ? 'Creating company...' : 'Create Company'}
           </button>
         </form>
         <p className="login-switch">

@@ -25,13 +25,6 @@ async function getActiveMembership(userId) {
   return rows[0] || null;
 }
 
-// Self-service signup has no "which company" step yet (deferred to a later
-// phase) — new signups join the one existing default org as a worker.
-async function getDefaultOrganization() {
-  const { rows } = await db.query('SELECT id, name FROM organizations ORDER BY created_at ASC LIMIT 1');
-  return rows[0] || null;
-}
-
 function signToken(user, membership) {
   return jwt.sign(
     {
@@ -58,45 +51,58 @@ function toUserResponse(user, membership) {
   };
 }
 
-// POST /api/auth/register — public self-signup, always joins the default
-// organization as a worker
+// POST /api/auth/register — public self-signup. Creates a brand-new
+// organization and makes the signing-up person its owner: this is how a
+// new company gets onto the platform. Joining an *existing* company
+// happens separately (an owner/manager adding a member on the Users page,
+// or — once built — accepting an email invitation), never through this
+// public endpoint.
 router.post('/register', async (req, res, next) => {
+  const client = await db.pool.connect();
   try {
-    const { name, email, password } = req.body;
-    if (!name || !email || !password) {
-      return res.status(400).json({ error: 'Name, email, and password required' });
+    const { name, email, password, organizationName } = req.body;
+    if (!name || !email || !password || !organizationName) {
+      return res.status(400).json({ error: 'Name, email, password, and company name are required' });
     }
     if (password.length < 8) {
       return res.status(400).json({ error: 'Password must be at least 8 characters' });
     }
 
-    const org = await getDefaultOrganization();
-    if (!org) {
-      return res.status(500).json({ error: 'No organization available for signup' });
-    }
+    await client.query('BEGIN');
 
     const hash = await bcrypt.hash(password, 12);
-    const { rows } = await db.query(
+    const { rows: userRows } = await client.query(
       `INSERT INTO users (name, email, password_hash)
        VALUES ($1, $2, $3)
        RETURNING id, name, email`,
       [name.trim(), email.toLowerCase().trim(), hash]
     );
-    const user = rows[0];
+    const user = userRows[0];
 
-    const { rows: memberRows } = await db.query(
+    const { rows: orgRows } = await client.query(
+      'INSERT INTO organizations (name) VALUES ($1) RETURNING id, name',
+      [organizationName.trim()]
+    );
+    const org = orgRows[0];
+
+    const { rows: memberRows } = await client.query(
       `INSERT INTO organization_members (organization_id, user_id, role, status)
-       VALUES ($1, $2, 'worker', 'active')
+       VALUES ($1, $2, 'owner', 'active')
        RETURNING id AS membership_id, organization_id, role`,
       [org.id, user.id]
     );
-    const membership = { ...memberRows[0], organization_name: org.name };
 
+    await client.query('COMMIT');
+
+    const membership = { ...memberRows[0], organization_name: org.name };
     const token = signToken(user, membership);
     res.status(201).json({ token, user: toUserResponse(user, membership) });
   } catch (err) {
+    await client.query('ROLLBACK');
     if (err.code === '23505') return res.status(409).json({ error: 'Email already in use' });
     next(err);
+  } finally {
+    client.release();
   }
 });
 
