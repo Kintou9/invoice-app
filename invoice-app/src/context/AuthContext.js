@@ -47,13 +47,27 @@ export function AuthProvider({ children }) {
     return res.data.user;
   };
 
+  const forgotPassword = async (email) => {
+    const res = await api.post('/auth/forgot-password', { email });
+    return res.data;
+  };
+
+  const resetPassword = async (token, password) => {
+    const res = await api.post('/auth/reset-password', { token, password });
+    if (res.data.token) {
+      localStorage.setItem('token', res.data.token);
+      setUser(res.data.user);
+    }
+    return res.data;
+  };
+
   const logout = () => {
     localStorage.removeItem('token');
     setUser(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, acceptInvite, switchOrganization, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, register, acceptInvite, switchOrganization, forgotPassword, resetPassword, logout }}>
       {children}
     </AuthContext.Provider>
   );

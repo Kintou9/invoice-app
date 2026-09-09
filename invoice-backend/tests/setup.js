@@ -20,7 +20,7 @@ jest.mock('../src/services/claude', () => {
 });
 jest.mock('../src/services/email', () => {
   const unexpected = jest.fn(() => { throw new Error('Unexpected email send'); });
-  return { sendInviteEmail: unexpected };
+  return { sendInviteEmail: unexpected, sendPasswordResetEmail: unexpected };
 });
 
 const blocked = () => { throw new Error('Network access is forbidden in backend tests'); };

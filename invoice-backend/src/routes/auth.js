@@ -1,9 +1,15 @@
 const express = require('express');
+const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const db = require('../db');
 const config = require('../config');
 const authenticate = require('../middleware/authenticate');
+const { sendPasswordResetEmail } = require('../services/email');
+
+const RESET_EXPIRY_MS = 60 * 60 * 1000; // 1 hour — shorter than an invite's
+// 7 days, since this grants access to an *existing* account rather than
+// setting up a brand-new one.
 
 const router = express.Router();
 
@@ -297,6 +303,89 @@ router.post('/accept-invite', async (req, res, next) => {
       role: invite.role,
       organization_name: invite.organization_name,
     };
+
+    const jwtToken = signToken(user, membership);
+    res.json({ token: jwtToken, user: toUserResponse(user, membership) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/auth/forgot-password — public. Always returns the same generic
+// success message regardless of whether the email actually exists, so this
+// endpoint can't be used to enumerate which emails are registered. Only
+// sends an email (and only generates a token) when a real, active-password
+// account is found.
+router.post('/forgot-password', async (req, res, next) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: 'Email is required' });
+
+    const genericResponse = { message: 'If an account exists for that email, a reset link has been sent.' };
+
+    const { rows } = await db.query(
+      'SELECT id, password_hash FROM users WHERE email = $1',
+      [email.toLowerCase().trim()]
+    );
+    const user = rows[0];
+    // No account, or an invited-but-never-accepted account with no password
+    // yet — nothing to reset. Same generic response either way.
+    if (!user || !user.password_hash) return res.json(genericResponse);
+
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const resetExpiresAt = new Date(Date.now() + RESET_EXPIRY_MS);
+    await db.query(
+      'UPDATE users SET reset_token = $1, reset_token_expires_at = $2 WHERE id = $3',
+      [resetToken, resetExpiresAt, user.id]
+    );
+
+    const resetUrl = `${config.frontendUrl}/reset-password?token=${resetToken}`;
+    try {
+      await sendPasswordResetEmail({ to: email.toLowerCase().trim(), resetUrl });
+    } catch (emailErr) {
+      // Same graceful-degradation shape as invites: the token still exists
+      // and a fresh forgot-password request will just overwrite it, so
+      // this doesn't need to fail the request or leak whether it worked.
+      console.error('Failed to send password reset email:', emailErr.message);
+    }
+
+    res.json(genericResponse);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/auth/reset-password — public. Sets a new password from a valid
+// reset token and logs the user in immediately, same as accept-invite.
+router.post('/reset-password', async (req, res, next) => {
+  try {
+    const { token, password } = req.body;
+    if (!token || !password) return res.status(400).json({ error: 'Token and password are required' });
+    if (password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters' });
+
+    const { rows } = await db.query(
+      'SELECT id, email, name, reset_token_expires_at FROM users WHERE reset_token = $1',
+      [token]
+    );
+    const user = rows[0];
+    if (!user) return res.status(404).json({ error: 'This reset link is invalid or already used' });
+    if (new Date(user.reset_token_expires_at) < new Date()) {
+      return res.status(410).json({ error: 'This reset link has expired — request a new one' });
+    }
+
+    const hash = await bcrypt.hash(password, 12);
+    await db.query(
+      'UPDATE users SET password_hash = $1, reset_token = NULL, reset_token_expires_at = NULL, updated_at = NOW() WHERE id = $2',
+      [hash, user.id]
+    );
+
+    const membership = await getActiveMembership(user.id);
+    if (!membership) {
+      // Password reset worked, but there's no active org to log them into
+      // (e.g. every membership got disabled since) — not an error, just no
+      // token to hand back.
+      return res.json({ message: 'Password updated. Please log in.' });
+    }
 
     const jwtToken = signToken(user, membership);
     res.json({ token: jwtToken, user: toUserResponse(user, membership) });

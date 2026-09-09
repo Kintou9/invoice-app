@@ -31,4 +31,23 @@ async function sendInviteEmail({ to, organizationName, inviterName, role, invite
   if (error) throw new Error(error.message || 'Failed to send invite email');
 }
 
-module.exports = { sendInviteEmail };
+/**
+ * Send a password reset email with a link to set a new password.
+ * resetUrl should already include the token as a query param.
+ */
+async function sendPasswordResetEmail({ to, resetUrl }) {
+  const client = getClient();
+  const { error } = await client.emails.send({
+    from: config.resend.fromEmail,
+    to,
+    subject: 'Reset your Trackly password',
+    html: `
+      <p>Someone requested a password reset for this account.</p>
+      <p><a href="${resetUrl}">Reset your password</a> — this link expires in 1 hour.</p>
+      <p>If you didn't request this, you can safely ignore this email.</p>
+    `,
+  });
+  if (error) throw new Error(error.message || 'Failed to send password reset email');
+}
+
+module.exports = { sendInviteEmail, sendPasswordResetEmail };
