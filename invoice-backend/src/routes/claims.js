@@ -2,6 +2,7 @@ const express = require('express');
 const db = require('../db');
 const authenticate = require('../middleware/authenticate');
 const authorize = require('../middleware/authorize');
+const { notify } = require('../services/notifications');
 
 const router = express.Router();
 
@@ -113,6 +114,16 @@ router.post('/', authenticate, authorize('owner', 'manager'), async (req, res, n
       ]
     );
 
+    if (rows[0].assigned_to) {
+      await notify({
+        organizationId: req.user.organizationId,
+        recipientMemberId: rows[0].assigned_to,
+        type: 'claim_assigned',
+        message: `You were assigned claim ${rows[0].claim_number}`,
+        link: `/claims/${rows[0].id}`,
+      });
+    }
+
     res.status(201).json(rows[0]);
   } catch (err) {
     if (err.code === '23505') return res.status(409).json({ error: 'Claim number already exists' });
@@ -144,6 +155,17 @@ router.patch('/:id', authenticate, authorize('owner', 'manager'), async (req, re
       [title, description, hasAssignedTo, req.body.assigned_to ?? null, status, req.params.id, req.user.organizationId]
     );
     if (!rows[0]) return res.status(404).json({ error: 'Claim not found' });
+
+    if (hasAssignedTo && rows[0].assigned_to) {
+      await notify({
+        organizationId: req.user.organizationId,
+        recipientMemberId: rows[0].assigned_to,
+        type: 'claim_assigned',
+        message: `You were assigned claim ${rows[0].claim_number}`,
+        link: `/claims/${rows[0].id}`,
+      });
+    }
+
     res.json(rows[0]);
   } catch (err) {
     next(err);
