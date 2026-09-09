@@ -80,6 +80,14 @@ body {
 .status-rejected { background: #fed7d7; color: #742a2a; }
 .status-draft { background: #e2e8f0; color: #4a5568; }
 
+/* Part purchase statuses */
+.status-ordered { background: #bee3f8; color: #2c5282; }
+.status-shipped { background: #fefcbf; color: #744210; }
+.status-delivered { background: #c6f6d5; color: #22543d; }
+.status-returned { background: #fed7aa; color: #7b341e; }
+.status-refunded { background: #e2e8f0; color: #4a5568; }
+.status-cancelled { background: #fed7d7; color: #742a2a; }
+
 .loading-screen {
   display: flex;
   align-items: center;

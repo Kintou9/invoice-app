@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import api from '../services/api';
 import { Plus, FileText } from 'lucide-react';
+import PartPurchasesSection from '../components/purchases/PartPurchasesSection';
 import './InvoiceDetailPage.css';
 
 export default function ClaimDetailPage() {
@@ -95,6 +96,11 @@ export default function ClaimDetailPage() {
             ))}
           </div>
         )}
+      </div>
+
+      <div className="card" style={{ marginTop: '1.25rem' }}>
+        <h2>Parts &amp; Purchases</h2>
+        <PartPurchasesSection claimId={id} invoices={invoices} />
       </div>
     </div>
   );
