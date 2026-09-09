@@ -7,22 +7,28 @@ const authenticate = require('../middleware/authenticate');
 
 const router = express.Router();
 
-// Role/org now live on organization_members, not users. A user's "active
-// membership" is whichever org membership currently has status='active' —
-// for this foundation pass every real user has exactly one, so "the first
-// active one" is unambiguous. A disabled membership means no login access,
-// same as the old users.is_active=false behavior.
-async function getActiveMembership(userId) {
+// Role/org now live on organization_members, not users — a person can have
+// more than one active membership (a real scenario since invitations
+// shipped: worker at one company, owner at another). "Active memberships"
+// lists all of them, ordered by how long they've been a member; a login
+// with no explicit target org picks the first one, same as before
+// multi-org-per-user was possible. A disabled membership means no login
+// access there, same as the old users.is_active=false behavior.
+async function getActiveMemberships(userId) {
   const { rows } = await db.query(
     `SELECT om.id AS membership_id, om.organization_id, om.role, o.name AS organization_name
      FROM organization_members om
      JOIN organizations o ON o.id = om.organization_id
      WHERE om.user_id = $1 AND om.status = 'active'
-     ORDER BY om.joined_at ASC
-     LIMIT 1`,
+     ORDER BY om.joined_at ASC`,
     [userId]
   );
-  return rows[0] || null;
+  return rows;
+}
+
+async function getActiveMembership(userId) {
+  const memberships = await getActiveMemberships(userId);
+  return memberships[0] || null;
 }
 
 function signToken(user, membership) {
@@ -158,6 +164,50 @@ router.get('/me', authenticate, async (req, res, next) => {
     }
 
     res.json({ ...toUserResponse(rows[0], membership), created_at: rows[0].created_at });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/auth/organizations — every organization the current user
+// belongs to, for the org switcher. Includes the one they're currently
+// scoped to (the frontend can tell which by comparing organizationId).
+router.get('/organizations', authenticate, async (req, res, next) => {
+  try {
+    const memberships = await getActiveMemberships(req.user.id);
+    res.json(memberships.map((m) => ({
+      organizationId: m.organization_id,
+      organizationName: m.organization_name,
+      role: m.role,
+    })));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/auth/switch-organization — reissues a JWT scoped to a
+// different organization the user is an active member of. Same shape as
+// login/register/accept-invite's response — the frontend just swaps the
+// stored token, no separate "switch" state to manage client-side.
+router.post('/switch-organization', authenticate, async (req, res, next) => {
+  try {
+    const { organizationId } = req.body;
+    if (!organizationId) return res.status(400).json({ error: 'organizationId is required' });
+
+    const { rows } = await db.query(
+      `SELECT om.id AS membership_id, om.organization_id, om.role, o.name AS organization_name
+       FROM organization_members om
+       JOIN organizations o ON o.id = om.organization_id
+       WHERE om.user_id = $1 AND om.organization_id = $2 AND om.status = 'active'`,
+      [req.user.id, organizationId]
+    );
+    const membership = rows[0];
+    if (!membership) {
+      return res.status(403).json({ error: 'You are not an active member of that organization' });
+    }
+
+    const token = signToken(req.user, membership);
+    res.json({ token, user: toUserResponse(req.user, membership) });
   } catch (err) {
     next(err);
   }

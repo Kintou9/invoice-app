@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { LogOut, FileText, Bell } from 'lucide-react';
+import { LogOut, FileText, Bell, Building2, ChevronDown, Check } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import './Navbar.css';
@@ -19,11 +19,15 @@ function timeAgo(dateStr) {
 }
 
 export default function Navbar() {
-  const { user, logout } = useAuth();
+  const { user, logout, switchOrganization } = useAuth();
   const navigate = useNavigate();
   const [notifications, setNotifications] = useState([]);
   const [open, setOpen] = useState(false);
   const panelRef = useRef(null);
+  const [organizations, setOrganizations] = useState([]);
+  const [orgSwitcherOpen, setOrgSwitcherOpen] = useState(false);
+  const [switching, setSwitching] = useState(false);
+  const orgPanelRef = useRef(null);
 
   const unreadCount = notifications.filter((n) => !n.read_at).length;
 
@@ -37,10 +41,17 @@ export default function Navbar() {
     return () => clearInterval(interval);
   }, []);
 
-  // Close the dropdown on an outside click
+  // Fetched once on mount, not polled — org membership changing mid-session
+  // is rare enough that requiring a fresh load to see a new one is fine.
+  useEffect(() => {
+    api.get('/auth/organizations').then((r) => setOrganizations(r.data)).catch(() => {});
+  }, []);
+
+  // Close either dropdown on an outside click
   useEffect(() => {
     const handleClick = (e) => {
       if (panelRef.current && !panelRef.current.contains(e.target)) setOpen(false);
+      if (orgPanelRef.current && !orgPanelRef.current.contains(e.target)) setOrgSwitcherOpen(false);
     };
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
@@ -65,6 +76,21 @@ export default function Navbar() {
     navigate('/login');
   };
 
+  const handleSwitchOrg = async (organizationId) => {
+    setOrgSwitcherOpen(false);
+    if (organizationId === user.organizationId) return;
+    setSwitching(true);
+    try {
+      await switchOrganization(organizationId);
+      // Hard reload rather than client-side navigate: every page's data is
+      // org-scoped, and there's no global refetch-everything mechanism to
+      // invalidate it cleanly after the token changes underneath it.
+      window.location.href = '/dashboard';
+    } catch {
+      setSwitching(false);
+    }
+  };
+
   return (
     <header className="navbar">
       <Link to="/dashboard" className="navbar-brand">
@@ -72,6 +98,42 @@ export default function Navbar() {
         <span>Invoice Manager</span>
       </Link>
       <div className="navbar-right">
+        {organizations.length > 1 && (
+          <div className="notification-wrap" ref={orgPanelRef}>
+            <button
+              className="org-switcher-btn"
+              onClick={() => setOrgSwitcherOpen((o) => !o)}
+              disabled={switching}
+              title="Switch organization"
+            >
+              <Building2 size={15} />
+              <span className="org-switcher-name">{user?.organizationName}</span>
+              <ChevronDown size={14} />
+            </button>
+            {orgSwitcherOpen && (
+              <div className="notification-panel org-switcher-panel">
+                <div className="notification-panel-header">
+                  <span>Switch Organization</span>
+                </div>
+                <div className="notification-list">
+                  {organizations.map((org) => (
+                    <button
+                      key={org.organizationId}
+                      className="notification-item org-switcher-item"
+                      onClick={() => handleSwitchOrg(org.organizationId)}
+                    >
+                      <span className="notification-message">
+                        {org.organizationName}
+                        <span className="org-switcher-role">{org.role}</span>
+                      </span>
+                      {org.organizationId === user.organizationId && <Check size={15} className="org-switcher-check" />}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
         <div className="notification-wrap" ref={panelRef}>
           <button className="btn-icon notification-bell" onClick={() => setOpen((o) => !o)} title="Notifications">
             <Bell size={18} />
