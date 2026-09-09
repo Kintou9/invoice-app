@@ -32,7 +32,7 @@ router.post('/photo/:invoiceId', authenticate, upload.single('photo'), async (re
     );
     if (!invoiceRows[0]) return res.status(404).json({ error: 'Invoice not found' });
 
-    if (req.user.role === 'worker' && invoiceRows[0].technician_id !== req.user.id) {
+    if (req.user.role === 'worker' && invoiceRows[0].technician_id !== req.user.membershipId) {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
@@ -127,7 +127,8 @@ router.get('/manager-folder', authenticate, authorize('owner', 'manager'), async
               u.name AS technician_name
        FROM invoices i
        JOIN claims c ON i.claim_id = c.id
-       JOIN users u ON i.technician_id = u.id
+       JOIN organization_members om ON i.technician_id = om.id
+       JOIN users u ON om.user_id = u.id
        WHERE i.status = 'approved' AND i.organization_id = $1
        ORDER BY i.reviewed_at DESC`,
       [req.user.organizationId]

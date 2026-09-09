@@ -35,11 +35,13 @@ router.get('/', authenticate, authorize('owner', 'manager'), async (req, res, ne
 });
 
 // GET /api/users/technicians — active workers in this organization, for
-// claim assignment dropdowns
+// claim assignment dropdowns. Returns the *membership* id, not the user id
+// — claims.assigned_to/invoices.technician_id point at organization_members
+// now, so this is the id the frontend needs to send back on assignment.
 router.get('/technicians', authenticate, authorize('owner', 'manager'), async (req, res, next) => {
   try {
     const { rows } = await db.query(
-      `SELECT u.id, u.name, u.email
+      `SELECT om.id, u.name, u.email
        FROM organization_members om
        JOIN users u ON u.id = om.user_id
        WHERE om.organization_id = $1 AND om.role = 'worker' AND om.status = 'active'
