@@ -4,6 +4,7 @@ const authenticate = require('../middleware/authenticate');
 const authorize = require('../middleware/authorize');
 const { generateIssueDescription, suggestParts } = require('../services/claude');
 const { generateSasUrl } = require('../services/azureBlob');
+const { notify, notifyReviewers } = require('../services/notifications');
 
 const router = express.Router();
 
@@ -190,10 +191,17 @@ router.post('/:id/submit', authenticate, async (req, res, next) => {
       [req.params.id]
     );
 
-    await db.query(
-      "UPDATE claims SET status = 'pending_approval', updated_at = NOW() WHERE id = $1",
+    const { rows: claimRows } = await db.query(
+      "UPDATE claims SET status = 'pending_approval', updated_at = NOW() WHERE id = $1 RETURNING claim_number",
       [existing[0].claim_id]
     );
+
+    await notifyReviewers({
+      organizationId: req.user.organizationId,
+      type: 'invoice_submitted',
+      message: `Invoice for claim ${claimRows[0].claim_number} needs your review`,
+      link: `/invoices/${rows[0].id}`,
+    });
 
     res.json(rows[0]);
   } catch (err) {
@@ -218,10 +226,20 @@ router.post('/:id/approve', authenticate, authorize('owner', 'manager'), async (
     );
     if (!rows[0]) return res.status(404).json({ error: 'Invoice not found' });
 
-    await db.query(
-      "UPDATE claims SET status = 'approved', updated_at = NOW() WHERE id = $1",
+    const { rows: claimRows } = await db.query(
+      "UPDATE claims SET status = 'approved', updated_at = NOW() WHERE id = $1 RETURNING claim_number",
       [rows[0].claim_id]
     );
+
+    if (rows[0].technician_id) {
+      await notify({
+        organizationId: req.user.organizationId,
+        recipientMemberId: rows[0].technician_id,
+        type: 'invoice_approved',
+        message: `Your invoice for claim ${claimRows[0].claim_number} was approved`,
+        link: `/invoices/${rows[0].id}`,
+      });
+    }
 
     res.json(rows[0]);
   } catch (err) {
@@ -246,10 +264,20 @@ router.post('/:id/reject', authenticate, authorize('owner', 'manager'), async (r
     );
     if (!rows[0]) return res.status(404).json({ error: 'Invoice not found' });
 
-    await db.query(
-      "UPDATE claims SET status = 'in_progress', updated_at = NOW() WHERE id = $1",
+    const { rows: claimRows } = await db.query(
+      "UPDATE claims SET status = 'in_progress', updated_at = NOW() WHERE id = $1 RETURNING claim_number",
       [rows[0].claim_id]
     );
+
+    if (rows[0].technician_id) {
+      await notify({
+        organizationId: req.user.organizationId,
+        recipientMemberId: rows[0].technician_id,
+        type: 'invoice_rejected',
+        message: `Your invoice for claim ${claimRows[0].claim_number} was rejected`,
+        link: `/invoices/${rows[0].id}`,
+      });
+    }
 
     res.json(rows[0]);
   } catch (err) {

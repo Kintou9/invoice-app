@@ -7,6 +7,7 @@ const invoiceRoutes = require('./routes/invoices');
 const partsRoutes = require('./routes/parts');
 const uploadRoutes = require('./routes/upload');
 const userRoutes = require('./routes/users');
+const notificationRoutes = require('./routes/notifications');
 
 const app = express();
 
@@ -44,6 +45,7 @@ app.use('/api/claims', claimRoutes);
 app.use('/api/invoices', invoiceRoutes);
 app.use('/api/parts', partsRoutes);
 app.use('/api/upload', uploadRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 app.use((err, req, res, next) => {
   console.error(err.stack);
