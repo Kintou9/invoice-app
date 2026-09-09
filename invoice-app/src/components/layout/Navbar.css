@@ -162,3 +162,55 @@
   font-size: 0.72rem;
   color: #a0aec0;
 }
+
+.org-switcher-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: rgba(255, 255, 255, 0.08);
+  border: none;
+  border-radius: 8px;
+  color: #e2e8f0;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 0.4rem 0.65rem;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.org-switcher-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.16);
+}
+.org-switcher-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.org-switcher-name {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.org-switcher-panel {
+  width: 260px;
+}
+
+.org-switcher-item {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.org-switcher-role {
+  display: inline-block;
+  margin-left: 0.5rem;
+  font-size: 0.72rem;
+  color: #a0aec0;
+  text-transform: capitalize;
+}
+
+.org-switcher-check {
+  color: #3182ce;
+  flex-shrink: 0;
+}
