@@ -13,21 +13,25 @@ router.get('/', authenticate, async (req, res, next) => {
     const { claim_id } = req.query;
     let query, params;
 
+    // technician_id is organization_members.id, not users.id — join through
+    // the membership to get a display name.
     if (req.user.role === 'worker') {
       query = `
         SELECT i.*, c.claim_number, c.title AS claim_title, u.name AS technician_name
         FROM invoices i
         JOIN claims c ON i.claim_id = c.id
-        LEFT JOIN users u ON i.technician_id = u.id
+        LEFT JOIN organization_members om ON i.technician_id = om.id
+        LEFT JOIN users u ON om.user_id = u.id
         WHERE i.organization_id = $1 AND i.technician_id = $2 ${claim_id ? 'AND i.claim_id = $3' : ''}
         ORDER BY i.created_at DESC`;
-      params = claim_id ? [req.user.organizationId, req.user.id, claim_id] : [req.user.organizationId, req.user.id];
+      params = claim_id ? [req.user.organizationId, req.user.membershipId, claim_id] : [req.user.organizationId, req.user.membershipId];
     } else {
       query = `
         SELECT i.*, c.claim_number, c.title AS claim_title, u.name AS technician_name
         FROM invoices i
         JOIN claims c ON i.claim_id = c.id
-        LEFT JOIN users u ON i.technician_id = u.id
+        LEFT JOIN organization_members om ON i.technician_id = om.id
+        LEFT JOIN users u ON om.user_id = u.id
         WHERE i.organization_id = $1 ${claim_id ? 'AND i.claim_id = $2' : ''}
         ORDER BY i.created_at DESC`;
       params = claim_id ? [req.user.organizationId, claim_id] : [req.user.organizationId];
@@ -51,14 +55,15 @@ router.get('/:id', authenticate, async (req, res, next) => {
               t.name AS template_name, t.prompt_text AS template_prompt
        FROM invoices i
        JOIN claims c ON i.claim_id = c.id
-       LEFT JOIN users u ON i.technician_id = u.id
+       LEFT JOIN organization_members om ON i.technician_id = om.id
+       LEFT JOIN users u ON om.user_id = u.id
        LEFT JOIN invoice_templates t ON i.template_id = t.id
        WHERE i.id = $1 AND i.organization_id = $2`,
       [req.params.id, req.user.organizationId]
     );
     if (!rows[0]) return res.status(404).json({ error: 'Invoice not found' });
 
-    if (req.user.role === 'worker' && rows[0].technician_id !== req.user.id) {
+    if (req.user.role === 'worker' && rows[0].technician_id !== req.user.membershipId) {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
@@ -104,11 +109,11 @@ router.post('/', authenticate, async (req, res, next) => {
     if (!claimRows[0]) return res.status(404).json({ error: 'Claim not found' });
 
     const claim = claimRows[0];
-    if (req.user.role === 'worker' && claim.assigned_to !== req.user.id) {
+    if (req.user.role === 'worker' && claim.assigned_to !== req.user.membershipId) {
       return res.status(403).json({ error: 'This claim is not assigned to you' });
     }
 
-    const technicianId = req.user.role === 'worker' ? req.user.id : (claim.assigned_to || req.user.id);
+    const technicianId = req.user.role === 'worker' ? req.user.membershipId : (claim.assigned_to || req.user.membershipId);
 
     const { rows } = await db.query(
       `INSERT INTO invoices (organization_id, claim_id, template_id, technician_id, model_number, serial_number, issue_description)
@@ -144,7 +149,7 @@ router.patch('/:id', authenticate, async (req, res, next) => {
     );
     if (!existing[0]) return res.status(404).json({ error: 'Invoice not found' });
 
-    if (req.user.role === 'worker' && existing[0].technician_id !== req.user.id) {
+    if (req.user.role === 'worker' && existing[0].technician_id !== req.user.membershipId) {
       return res.status(403).json({ error: 'Forbidden' });
     }
     if (existing[0].status === 'approved') {
@@ -176,7 +181,7 @@ router.post('/:id/submit', authenticate, async (req, res, next) => {
     );
     if (!existing[0]) return res.status(404).json({ error: 'Invoice not found' });
 
-    if (req.user.role === 'worker' && existing[0].technician_id !== req.user.id) {
+    if (req.user.role === 'worker' && existing[0].technician_id !== req.user.membershipId) {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
@@ -209,7 +214,7 @@ router.post('/:id/approve', authenticate, authorize('owner', 'manager'), async (
         updated_at = NOW()
        WHERE id = $3 AND organization_id = $4
        RETURNING *`,
-      [manager_notes || null, req.user.id, req.params.id, req.user.organizationId]
+      [manager_notes || null, req.user.membershipId, req.params.id, req.user.organizationId]
     );
     if (!rows[0]) return res.status(404).json({ error: 'Invoice not found' });
 
@@ -237,7 +242,7 @@ router.post('/:id/reject', authenticate, authorize('owner', 'manager'), async (r
         updated_at = NOW()
        WHERE id = $3 AND organization_id = $4
        RETURNING *`,
-      [manager_notes || null, req.user.id, req.params.id, req.user.organizationId]
+      [manager_notes || null, req.user.membershipId, req.params.id, req.user.organizationId]
     );
     if (!rows[0]) return res.status(404).json({ error: 'Invoice not found' });
 
