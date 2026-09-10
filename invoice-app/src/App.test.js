@@ -7,6 +7,6 @@ import App from './App';
 // unauthenticated "/" route App renders by default in a test environment).
 test('renders the landing page for an unauthenticated visitor', () => {
   render(<App />);
-  const heroButton = screen.getByRole('button', { name: /get started/i });
+  const heroButton = screen.getAllByRole('button', { name: /start free/i })[0];
   expect(heroButton).toBeInTheDocument();
 });
