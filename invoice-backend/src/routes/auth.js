@@ -6,6 +6,8 @@ const db = require('../db');
 const config = require('../config');
 const authenticate = require('../middleware/authenticate');
 const { sendPasswordResetEmail } = require('../services/email');
+const { logAction } = require('../services/auditLog');
+const { hashToken } = require('../utils/tokenHash');
 
 const RESET_EXPIRY_MS = 60 * 60 * 1000; // 1 hour — shorter than an invite's
 // 7 days, since this grants access to an *existing* account rather than
@@ -107,6 +109,16 @@ router.post('/register', async (req, res, next) => {
     await client.query('COMMIT');
 
     const membership = { ...memberRows[0], organization_name: org.name };
+
+    await logAction({
+      organizationId: org.id,
+      entityType: 'organization',
+      entityId: org.id,
+      action: 'create',
+      performedBy: membership.membership_id,
+      metadata: { organization_name: org.name, owner_email: user.email },
+    });
+
     const token = signToken(user, membership);
     res.status(201).json({ token, user: toUserResponse(user, membership) });
   } catch (err) {
@@ -229,7 +241,7 @@ router.get('/invite/:token', async (req, res, next) => {
        JOIN users u ON u.id = om.user_id
        JOIN organizations o ON o.id = om.organization_id
        WHERE om.invite_token = $1 AND om.status = 'invited'`,
-      [req.params.token]
+      [hashToken(req.params.token)]
     );
     const invite = rows[0];
     if (!invite) return res.status(404).json({ error: 'Invite not found or already used' });
@@ -266,7 +278,7 @@ router.post('/accept-invite', async (req, res, next) => {
        JOIN users u ON u.id = om.user_id
        JOIN organizations o ON o.id = om.organization_id
        WHERE om.invite_token = $1 AND om.status = 'invited'`,
-      [token]
+      [hashToken(token)]
     );
     const invite = rows[0];
     if (!invite) return res.status(404).json({ error: 'Invite not found or already used' });
@@ -294,6 +306,15 @@ router.post('/accept-invite', async (req, res, next) => {
        WHERE id = $1`,
       [invite.membership_id]
     );
+
+    await logAction({
+      organizationId: invite.organization_id,
+      entityType: 'organization_member',
+      entityId: invite.membership_id,
+      action: 'accept_invite',
+      performedBy: invite.membership_id,
+      metadata: { role: invite.role },
+    });
 
     const { rows: userRows } = await db.query('SELECT id, name, email FROM users WHERE id = $1', [invite.user_id]);
     const user = userRows[0];
@@ -334,9 +355,11 @@ router.post('/forgot-password', async (req, res, next) => {
 
     const resetToken = crypto.randomBytes(32).toString('hex');
     const resetExpiresAt = new Date(Date.now() + RESET_EXPIRY_MS);
+    // Store only a hash — the raw token exists solely in the emailed link,
+    // never at rest, same treatment as invite_token below.
     await db.query(
       'UPDATE users SET reset_token = $1, reset_token_expires_at = $2 WHERE id = $3',
-      [resetToken, resetExpiresAt, user.id]
+      [hashToken(resetToken), resetExpiresAt, user.id]
     );
 
     const resetUrl = `${config.frontendUrl}/reset-password?token=${resetToken}`;
@@ -365,7 +388,7 @@ router.post('/reset-password', async (req, res, next) => {
 
     const { rows } = await db.query(
       'SELECT id, email, name, reset_token_expires_at FROM users WHERE reset_token = $1',
-      [token]
+      [hashToken(token)]
     );
     const user = rows[0];
     if (!user) return res.status(404).json({ error: 'This reset link is invalid or already used' });
@@ -383,9 +406,18 @@ router.post('/reset-password', async (req, res, next) => {
     if (!membership) {
       // Password reset worked, but there's no active org to log them into
       // (e.g. every membership got disabled since) — not an error, just no
-      // token to hand back.
+      // token to hand back. Also nothing to attach an audit log row to
+      // (organization_id is required) — skip logging in this edge case.
       return res.json({ message: 'Password updated. Please log in.' });
     }
+
+    await logAction({
+      organizationId: membership.organization_id,
+      entityType: 'user',
+      entityId: user.id,
+      action: 'password_reset',
+      performedBy: membership.membership_id,
+    });
 
     const jwtToken = signToken(user, membership);
     res.json({ token: jwtToken, user: toUserResponse(user, membership) });
@@ -414,6 +446,14 @@ router.post('/change-password', authenticate, async (req, res, next) => {
       hash,
       req.user.id,
     ]);
+
+    await logAction({
+      organizationId: req.user.organizationId,
+      entityType: 'user',
+      entityId: req.user.id,
+      action: 'change_password',
+      performedBy: req.user.membershipId,
+    });
 
     res.json({ message: 'Password updated' });
   } catch (err) {

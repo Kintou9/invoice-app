@@ -2,6 +2,7 @@ const express = require('express');
 const db = require('../db');
 const authenticate = require('../middleware/authenticate');
 const { autoDetectSupplier } = require('../utils/supplierDetect');
+const { logAction } = require('../services/auditLog');
 
 const router = express.Router();
 
@@ -84,6 +85,15 @@ router.post('/', authenticate, async (req, res, next) => {
       ]
     );
 
+    await logAction({
+      organizationId: req.user.organizationId,
+      entityType: 'part_purchase',
+      entityId: rows[0].id,
+      action: 'create',
+      performedBy: req.user.membershipId,
+      metadata: { claim_id, part_description, total_cost: rows[0].total_cost },
+    });
+
     res.status(201).json(rows[0]);
   } catch (err) {
     next(err);
@@ -127,6 +137,16 @@ router.patch('/:id', authenticate, async (req, res, next) => {
       values
     );
     if (!rows[0]) return res.status(404).json({ error: 'Purchase not found' });
+
+    await logAction({
+      organizationId: req.user.organizationId,
+      entityType: 'part_purchase',
+      entityId: rows[0].id,
+      action: 'edit',
+      performedBy: req.user.membershipId,
+      metadata: { fields: Object.keys(req.body) },
+    });
+
     res.json(rows[0]);
   } catch (err) {
     next(err);
@@ -137,7 +157,7 @@ router.patch('/:id', authenticate, async (req, res, next) => {
 router.delete('/:id', authenticate, async (req, res, next) => {
   try {
     const { rows: existing } = await db.query(
-      'SELECT invoice_line_item_id FROM part_purchases WHERE id = $1 AND organization_id = $2',
+      'SELECT invoice_line_item_id, part_description FROM part_purchases WHERE id = $1 AND organization_id = $2',
       [req.params.id, req.user.organizationId]
     );
     if (!existing[0]) return res.status(404).json({ error: 'Purchase not found' });
@@ -148,6 +168,16 @@ router.delete('/:id', authenticate, async (req, res, next) => {
     await db.query('DELETE FROM part_purchases WHERE id = $1 AND organization_id = $2', [
       req.params.id, req.user.organizationId,
     ]);
+
+    await logAction({
+      organizationId: req.user.organizationId,
+      entityType: 'part_purchase',
+      entityId: req.params.id,
+      action: 'delete',
+      performedBy: req.user.membershipId,
+      metadata: { part_description: existing[0].part_description },
+    });
+
     res.status(204).send();
   } catch (err) {
     next(err);
@@ -208,6 +238,15 @@ router.post('/:id/add-to-invoice', authenticate, async (req, res, next) => {
     const marginPct = Number(lineItem.total_price) > 0
       ? Number(((profit / Number(lineItem.total_price)) * 100).toFixed(1))
       : null;
+
+    await logAction({
+      organizationId: req.user.organizationId,
+      entityType: 'part_purchase',
+      entityId: purchase.id,
+      action: 'add_to_invoice',
+      performedBy: req.user.membershipId,
+      metadata: { invoice_id, line_item_id: lineItem.id, unit_price, profit, margin_pct: marginPct },
+    });
 
     res.status(201).json({ line_item: lineItem, profit, margin_pct: marginPct });
   } catch (err) {

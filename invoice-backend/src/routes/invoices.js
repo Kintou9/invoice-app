@@ -5,6 +5,7 @@ const authorize = require('../middleware/authorize');
 const { generateIssueDescription, suggestParts } = require('../services/claude');
 const { generateSasUrl } = require('../services/azureBlob');
 const { notify, notifyReviewers } = require('../services/notifications');
+const { logAction } = require('../services/auditLog');
 
 const router = express.Router();
 
@@ -133,6 +134,15 @@ router.post('/', authenticate, async (req, res, next) => {
       claim_id,
     ]);
 
+    await logAction({
+      organizationId: req.user.organizationId,
+      entityType: 'invoice',
+      entityId: rows[0].id,
+      action: 'create',
+      performedBy: req.user.membershipId,
+      metadata: { claim_id },
+    });
+
     res.status(201).json(rows[0]);
   } catch (err) {
     next(err);
@@ -167,6 +177,16 @@ router.patch('/:id', authenticate, async (req, res, next) => {
        RETURNING *`,
       [model_number, serial_number, issue_description, req.params.id]
     );
+
+    await logAction({
+      organizationId: req.user.organizationId,
+      entityType: 'invoice',
+      entityId: rows[0].id,
+      action: 'edit',
+      performedBy: req.user.membershipId,
+      metadata: { model_number, serial_number },
+    });
+
     res.json(rows[0]);
   } catch (err) {
     next(err);
@@ -201,6 +221,15 @@ router.post('/:id/submit', authenticate, async (req, res, next) => {
       type: 'invoice_submitted',
       message: `Invoice for claim ${claimRows[0].claim_number} needs your review`,
       link: `/invoices/${rows[0].id}`,
+    });
+
+    await logAction({
+      organizationId: req.user.organizationId,
+      entityType: 'invoice',
+      entityId: rows[0].id,
+      action: 'submit',
+      performedBy: req.user.membershipId,
+      metadata: { claim_number: claimRows[0].claim_number },
     });
 
     res.json(rows[0]);
@@ -241,6 +270,15 @@ router.post('/:id/approve', authenticate, authorize('owner', 'manager'), async (
       });
     }
 
+    await logAction({
+      organizationId: req.user.organizationId,
+      entityType: 'invoice',
+      entityId: rows[0].id,
+      action: 'approve',
+      performedBy: req.user.membershipId,
+      metadata: { claim_number: claimRows[0].claim_number, manager_notes: manager_notes || null },
+    });
+
     res.json(rows[0]);
   } catch (err) {
     next(err);
@@ -278,6 +316,15 @@ router.post('/:id/reject', authenticate, authorize('owner', 'manager'), async (r
         link: `/invoices/${rows[0].id}`,
       });
     }
+
+    await logAction({
+      organizationId: req.user.organizationId,
+      entityType: 'invoice',
+      entityId: rows[0].id,
+      action: 'reject',
+      performedBy: req.user.membershipId,
+      metadata: { claim_number: claimRows[0].claim_number, manager_notes: manager_notes || null },
+    });
 
     res.json(rows[0]);
   } catch (err) {

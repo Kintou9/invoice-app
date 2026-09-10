@@ -3,6 +3,7 @@ const db = require('../db');
 const authenticate = require('../middleware/authenticate');
 const authorize = require('../middleware/authorize');
 const { notify } = require('../services/notifications');
+const { logAction } = require('../services/auditLog');
 
 const router = express.Router();
 
@@ -124,6 +125,15 @@ router.post('/', authenticate, authorize('owner', 'manager'), async (req, res, n
       });
     }
 
+    await logAction({
+      organizationId: req.user.organizationId,
+      entityType: 'claim',
+      entityId: rows[0].id,
+      action: 'create',
+      performedBy: req.user.membershipId,
+      metadata: { claim_number: rows[0].claim_number, assigned_to: rows[0].assigned_to },
+    });
+
     res.status(201).json(rows[0]);
   } catch (err) {
     if (err.code === '23505') return res.status(409).json({ error: 'Claim number already exists' });
@@ -166,6 +176,15 @@ router.patch('/:id', authenticate, authorize('owner', 'manager'), async (req, re
       });
     }
 
+    await logAction({
+      organizationId: req.user.organizationId,
+      entityType: 'claim',
+      entityId: rows[0].id,
+      action: 'edit',
+      performedBy: req.user.membershipId,
+      metadata: { title, description, status, assigned_to: hasAssignedTo ? (req.body.assigned_to ?? null) : undefined },
+    });
+
     res.json(rows[0]);
   } catch (err) {
     next(err);
@@ -175,11 +194,21 @@ router.patch('/:id', authenticate, authorize('owner', 'manager'), async (req, re
 // DELETE /api/claims/:id — owner only
 router.delete('/:id', authenticate, authorize('owner'), async (req, res, next) => {
   try {
-    const { rowCount } = await db.query(
-      'DELETE FROM claims WHERE id = $1 AND organization_id = $2',
+    const { rows } = await db.query(
+      'DELETE FROM claims WHERE id = $1 AND organization_id = $2 RETURNING claim_number',
       [req.params.id, req.user.organizationId]
     );
-    if (!rowCount) return res.status(404).json({ error: 'Claim not found' });
+    if (!rows[0]) return res.status(404).json({ error: 'Claim not found' });
+
+    await logAction({
+      organizationId: req.user.organizationId,
+      entityType: 'claim',
+      entityId: req.params.id,
+      action: 'delete',
+      performedBy: req.user.membershipId,
+      metadata: { claim_number: rows[0].claim_number },
+    });
+
     res.status(204).send();
   } catch (err) {
     next(err);

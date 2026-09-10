@@ -1,4 +1,5 @@
 const express = require('express');
+const rateLimit = require('express-rate-limit');
 
 const config = require('./config');
 const authRoutes = require('./routes/auth');
@@ -9,8 +10,45 @@ const uploadRoutes = require('./routes/upload');
 const userRoutes = require('./routes/users');
 const notificationRoutes = require('./routes/notifications');
 const purchaseRoutes = require('./routes/partPurchases');
+const auditLogRoutes = require('./routes/auditLog');
 
 const app = express();
+
+// App Service sits behind Azure's reverse proxy — without this, req.ip (and
+// therefore every rate limiter below) sees the proxy's address, not the
+// real client's, and every user would share one bucket.
+app.set('trust proxy', 1);
+
+// Skip rate limiting entirely under Jest — tests run many requests against
+// the in-process app with no real network involved, and shouldn't trip
+// limits meant for real traffic.
+const isTest = process.env.NODE_ENV === 'test';
+
+const jsonRateLimitHandler = (req, res) => {
+  res.status(429).json({ error: 'Too many requests — please try again later' });
+};
+
+// Backstop against scraping/DoS across the whole API.
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: () => isTest,
+  handler: jsonRateLimitHandler,
+});
+
+// Tighter limit on the auth endpoints that are actual brute-force/spam/
+// enumeration targets (credential stuffing on login, mass account creation,
+// reset-link spam).
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: () => isTest,
+  handler: jsonRateLimitHandler,
+});
 
 // Normalize FRONTEND_URL defensively: tolerate a missing scheme (bare
 // hostname), surrounding whitespace, and a trailing slash, so a small
@@ -40,6 +78,15 @@ app.use(express.urlencoded({ extended: true }));
 
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
+app.use('/api', globalLimiter);
+// Brute-force/enumeration/spam targets get a much tighter limit on top of
+// the global one.
+app.use('/api/auth/login', authLimiter);
+app.use('/api/auth/register', authLimiter);
+app.use('/api/auth/forgot-password', authLimiter);
+app.use('/api/auth/reset-password', authLimiter);
+app.use('/api/auth/accept-invite', authLimiter);
+
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/claims', claimRoutes);
@@ -48,6 +95,7 @@ app.use('/api/parts', partsRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/purchases', purchaseRoutes);
+app.use('/api/audit-log', auditLogRoutes);
 
 app.use((err, req, res, next) => {
   console.error(err.stack);

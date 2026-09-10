@@ -5,6 +5,8 @@ const config = require('../config');
 const authenticate = require('../middleware/authenticate');
 const authorize = require('../middleware/authorize');
 const { sendInviteEmail } = require('../services/email');
+const { logAction } = require('../services/auditLog');
+const { hashToken } = require('../utils/tokenHash');
 
 const INVITE_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
@@ -86,12 +88,26 @@ router.post('/', authenticate, authorize('owner'), async (req, res, next) => {
     const inviteToken = crypto.randomBytes(32).toString('hex');
     const inviteExpiresAt = new Date(Date.now() + INVITE_EXPIRY_MS);
 
+    // Store only a hash at rest — the raw token exists solely in the
+    // emailed invite link, same treatment as auth.js's reset_token.
+    // Aliased to membership_id, not id — memberRows gets spread into the
+    // response below alongside the user row, and a bare "id" here would
+    // silently clobber the user's own id in that spread.
     const { rows: memberRows } = await db.query(
       `INSERT INTO organization_members (organization_id, user_id, role, status, invite_token, invite_expires_at)
        VALUES ($1, $2, $3, 'invited', $4, $5)
-       RETURNING role, status, joined_at`,
-      [req.user.organizationId, user.id, role, inviteToken, inviteExpiresAt]
+       RETURNING id AS membership_id, role, status, joined_at`,
+      [req.user.organizationId, user.id, role, hashToken(inviteToken), inviteExpiresAt]
     );
+
+    await logAction({
+      organizationId: req.user.organizationId,
+      entityType: 'organization_member',
+      entityId: memberRows[0].membership_id,
+      action: 'invite',
+      performedBy: req.user.membershipId,
+      metadata: { email: normalizedEmail, role },
+    });
 
     const { rows: orgRows } = await db.query('SELECT name FROM organizations WHERE id = $1', [req.user.organizationId]);
     const inviteUrl = `${config.frontendUrl}/accept-invite?token=${inviteToken}`;
@@ -131,7 +147,7 @@ router.post('/:id/resend-invite', authenticate, authorize('owner'), async (req, 
       `UPDATE organization_members SET invite_token = $1, invite_expires_at = $2
        WHERE user_id = $3 AND organization_id = $4 AND status = 'invited'
        RETURNING role`,
-      [inviteToken, inviteExpiresAt, req.params.id, req.user.organizationId]
+      [hashToken(inviteToken), inviteExpiresAt, req.params.id, req.user.organizationId]
     );
     if (!memberRows[0]) return res.status(404).json({ error: 'No pending invite found for this member' });
 
@@ -172,15 +188,26 @@ router.patch('/:id', authenticate, authorize('owner'), async (req, res, next) =>
       await db.query('UPDATE users SET name = $1, updated_at = NOW() WHERE id = $2', [name, req.params.id]);
     }
 
+    // Aliased to membership_id, not id — see the same note in POST / above;
+    // memberRows gets spread into the response below alongside the user row.
     const { rows: memberRows } = await db.query(
       `UPDATE organization_members SET
         role = COALESCE($1, role),
         status = COALESCE($2, status)
        WHERE user_id = $3 AND organization_id = $4
-       RETURNING role, status, joined_at`,
+       RETURNING id AS membership_id, role, status, joined_at`,
       [role, status, req.params.id, req.user.organizationId]
     );
     if (!memberRows[0]) return res.status(404).json({ error: 'User not found in this organization' });
+
+    await logAction({
+      organizationId: req.user.organizationId,
+      entityType: 'organization_member',
+      entityId: memberRows[0].membership_id,
+      action: 'edit',
+      performedBy: req.user.membershipId,
+      metadata: { name, role, status },
+    });
 
     const { rows: userRows } = await db.query('SELECT id, name, email FROM users WHERE id = $1', [req.params.id]);
     res.json({ ...userRows[0], ...memberRows[0] });
