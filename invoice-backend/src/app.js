@@ -1,5 +1,5 @@
 const express = require('express');
-const rateLimit = require('express-rate-limit');
+const { rateLimit, ipKeyGenerator } = require('express-rate-limit');
 
 const config = require('./config');
 const authRoutes = require('./routes/auth');
@@ -28,6 +28,26 @@ const jsonRateLimitHandler = (req, res) => {
   res.status(429).json({ error: 'Too many requests — please try again later' });
 };
 
+// Azure App Service's X-Forwarded-For entry is "<client-ip>:<client-port>",
+// not a bare IP — the port is the client's ephemeral source port, which is
+// different on every single connection. express-rate-limit's default
+// keyGenerator (req.ip, via Express's trust-proxy handling) keeps that port
+// as part of the key, so every request looked like a brand-new client and
+// the limit never tripped. Strip the port, then hand the bare address to
+// express-rate-limit's own ipKeyGenerator so IPv6 addresses still get
+// collapsed to a /56 subnet the same way the library's default would —
+// skipping that step would let an IPv6 client bypass the limit by rotating
+// addresses within their own subnet.
+const rateLimitKey = (req) => {
+  const forwardedFor = req.headers['x-forwarded-for'];
+  const candidate = forwardedFor ? forwardedFor.split(',')[0].trim() : req.ip;
+  const bracketedIPv6 = candidate.match(/^\[(.+)\]:\d+$/); // "[::1]:1234"
+  if (bracketedIPv6) return ipKeyGenerator(bracketedIPv6[1]);
+  const ipv4WithPort = candidate.match(/^(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}):\d+$/);
+  if (ipv4WithPort) return ipKeyGenerator(ipv4WithPort[1]);
+  return ipKeyGenerator(candidate); // bare IPv4, bare IPv6, or already-clean req.ip
+};
+
 // Backstop against scraping/DoS across the whole API.
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -35,6 +55,7 @@ const globalLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   skip: () => isTest,
+  keyGenerator: rateLimitKey,
   handler: jsonRateLimitHandler,
 });
 
@@ -47,6 +68,7 @@ const authLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   skip: () => isTest,
+  keyGenerator: rateLimitKey,
   handler: jsonRateLimitHandler,
 });
 
