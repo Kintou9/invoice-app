@@ -46,17 +46,17 @@ const STEPS = [
   {
     icon: UserPlus,
     title: 'Create a Claim',
-    desc: 'Log the customer, equipment, and job details — or snap a photo and let AI fill it in.',
+    desc: 'Log the customer, equipment, job details and submit claim — or snap a photo and let AI fill it in.',
   },
   {
     icon: Wrench,
-    title: 'Do the Job',
+    title: 'Complete the Job',
     desc: 'Technician completes the work, adds parts, and fills out the invoice on-site.',
   },
   {
     icon: Send,
     title: 'Submit & Get Paid',
-    desc: 'Manager reviews and approves, then the invoice is ready to send.',
+    desc: 'Manager reviews and approves, then closes claim.',
   },
 ];
 
