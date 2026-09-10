@@ -99,25 +99,6 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
-// TEMP DIAGNOSTIC — removed before commit
-app.get('/_debug/rl', (req, res) => res.json({
-  xff: req.headers['x-forwarded-for'],
-  reqIp: req.ip,
-  reqIps: req.ips,
-  key: rateLimitKey(req),
-  instanceId: process.env.WEBSITE_INSTANCE_ID,
-  roleInstanceId: process.env.WEBSITE_ROLE_INSTANCE_ID,
-  computerName: process.env.COMPUTERNAME,
-  pid: process.pid,
-}));
-// Hit the actual authLimiter-guarded path to see remaining/pid together —
-// same limiter instance, same key logic, but on a route that mirrors
-// /api/auth/login's real position in the middleware chain.
-app.get('/_debug/rl2', authLimiter, (req, res) => res.json({
-  key: rateLimitKey(req),
-  instanceId: process.env.WEBSITE_INSTANCE_ID,
-  pid: process.pid,
-}));
 
 app.use('/api', globalLimiter);
 // Brute-force/enumeration/spam targets get a much tighter limit on top of
