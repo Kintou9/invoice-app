@@ -99,6 +99,14 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
+// TEMP DIAGNOSTIC — removed before commit
+app.get('/_debug/rl', (req, res) => res.json({
+  xff: req.headers['x-forwarded-for'],
+  reqIp: req.ip,
+  reqIps: req.ips,
+  key: rateLimitKey(req),
+  allHeaders: req.headers,
+}));
 
 app.use('/api', globalLimiter);
 // Brute-force/enumeration/spam targets get a much tighter limit on top of
