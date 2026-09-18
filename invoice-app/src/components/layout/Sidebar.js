@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import {
   LayoutDashboard, ClipboardList, FileText, Users, Folder, Store, Palette, Files,
-  Building2, ChevronDown, Check, LogOut,
+  Building2, ChevronDown, ChevronsLeft, ChevronsRight, Check, LogOut,
 } from 'lucide-react';
 import './Sidebar.css';
 
@@ -51,6 +51,22 @@ export default function Sidebar() {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const userMenuRef = useRef(null);
 
+  const [collapsed, setCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem('sidebar_collapsed') === '1';
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('sidebar_collapsed', collapsed ? '1' : '0');
+    } catch {
+      // Private browsing / storage blocked — collapse state just won't persist across reloads.
+    }
+  }, [collapsed]);
+
   // Fetched once — org membership changing mid-session is rare enough that
   // requiring a fresh load to see a new one is fine (same posture as the
   // Navbar this replaces).
@@ -88,20 +104,34 @@ export default function Sidebar() {
   };
 
   return (
-    <aside className="sidebar">
-      <Link to="/dashboard" className="sidebar-brand">
-        <FileText size={22} />
-        <span>Trackly</span>
-      </Link>
+    <aside className={`sidebar ${collapsed ? 'collapsed' : ''}`}>
+      <div className="sidebar-brand-row">
+        <Link to="/dashboard" className="sidebar-brand" title="Trackly">
+          <FileText size={22} />
+          <span>Trackly</span>
+        </Link>
+        <button
+          className="sidebar-collapse-btn"
+          onClick={() => { setCollapsed((c) => !c); setOrgOpen(false); }}
+          title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        >
+          {collapsed ? <ChevronsRight size={15} /> : <ChevronsLeft size={15} />}
+        </button>
+      </div>
 
       {organizations.length > 1 ? (
         <div className="sidebar-org" ref={orgRef}>
-          <button className="sidebar-org-btn" onClick={() => setOrgOpen((o) => !o)} disabled={switching} title="Switch organization">
+          <button
+            className="sidebar-org-btn"
+            onClick={() => { if (collapsed) { setCollapsed(false); } else { setOrgOpen((o) => !o); } }}
+            disabled={switching}
+            title={user?.organizationName || 'Switch organization'}
+          >
             <Building2 size={15} />
             <span className="sidebar-org-name">{user?.organizationName}</span>
-            <ChevronDown size={14} />
+            <ChevronDown size={14} className="sidebar-org-chevron" />
           </button>
-          {orgOpen && (
+          {orgOpen && !collapsed && (
             <div className="sidebar-dropdown sidebar-org-dropdown">
               {organizations.map((org) => (
                 <button key={org.organizationId} className="sidebar-dropdown-item" onClick={() => handleSwitchOrg(org.organizationId)}>
@@ -116,7 +146,7 @@ export default function Sidebar() {
           )}
         </div>
       ) : (
-        <div className="sidebar-org sidebar-org-static">
+        <div className="sidebar-org sidebar-org-static" title={user?.organizationName}>
           <Building2 size={15} />
           <span className="sidebar-org-name">{user?.organizationName}</span>
         </div>
@@ -124,7 +154,7 @@ export default function Sidebar() {
 
       <nav className="sidebar-nav">
         {items.map(({ to, icon: Icon, label }) => (
-          <NavLink key={to} to={to} end={to === '/dashboard'} className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
+          <NavLink key={to} to={to} end={to === '/dashboard'} className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`} title={label}>
             <Icon size={18} />
             <span>{label}</span>
           </NavLink>
@@ -132,20 +162,24 @@ export default function Sidebar() {
       </nav>
 
       <div className="sidebar-user" ref={userMenuRef}>
-        {userMenuOpen && (
+        {userMenuOpen && !collapsed && (
           <div className="sidebar-dropdown sidebar-user-dropdown">
             <button className="sidebar-dropdown-item" onClick={handleLogout}>
               <LogOut size={15} /> Sign out
             </button>
           </div>
         )}
-        <button className="sidebar-user-btn" onClick={() => setUserMenuOpen((o) => !o)}>
+        <button
+          className="sidebar-user-btn"
+          onClick={() => { if (collapsed) { setCollapsed(false); } else { setUserMenuOpen((o) => !o); } }}
+          title={user?.name}
+        >
           <span className="sidebar-avatar">{initials(user?.name)}</span>
           <span className="sidebar-user-info">
             <span className="sidebar-user-name">{user?.name}</span>
             <span className="sidebar-user-role">{user?.role}</span>
           </span>
-          <ChevronDown size={14} />
+          <ChevronDown size={14} className="sidebar-user-chevron" />
         </button>
       </div>
     </aside>
