@@ -1,55 +1,22 @@
-import { NavLink } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
-import Navbar from './Navbar';
-import { LayoutDashboard, ClipboardList, FileText, Users, Folder, Store, Palette } from 'lucide-react';
+import { Sun, Moon } from 'lucide-react';
+import { useTheme } from '../../context/ThemeContext';
+import Sidebar from './Sidebar';
+import NotificationBell from './NotificationBell';
 import './AppLayout.css';
 
-const navItems = {
-  owner: [
-    { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-    { to: '/claims', icon: ClipboardList, label: 'Claims' },
-    { to: '/invoices', icon: FileText, label: 'Invoices' },
-    { to: '/users', icon: Users, label: 'Users' },
-    { to: '/manager-folder', icon: Folder, label: 'Manager Folder' },
-    { to: '/suppliers', icon: Store, label: 'Suppliers' },
-    { to: '/settings/invoice-templates', icon: Palette, label: 'Invoice Templates' },
-  ],
-  manager: [
-    { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-    { to: '/claims', icon: ClipboardList, label: 'Claims' },
-    { to: '/invoices', icon: FileText, label: 'Invoices' },
-    { to: '/manager-folder', icon: Folder, label: 'Manager Folder' },
-  ],
-  worker: [
-    { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-    { to: '/claims', icon: ClipboardList, label: 'My Claims' },
-    { to: '/invoices', icon: FileText, label: 'My Invoices' },
-  ],
-};
-
 export default function AppLayout({ children }) {
-  const { user } = useAuth();
-  const items = navItems[user?.role] || [];
+  const { theme, toggleTheme } = useTheme();
 
   return (
     <div className="app-shell">
-      <Navbar />
-      <div className="app-body">
-        <aside className="sidebar">
-          <nav>
-            {items.map(({ to, icon: Icon, label }) => (
-              <NavLink
-                key={to}
-                to={to}
-                end={to === '/dashboard'}
-                className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
-              >
-                <Icon size={18} />
-                <span>{label}</span>
-              </NavLink>
-            ))}
-          </nav>
-        </aside>
+      <Sidebar />
+      <div className="app-main">
+        <div className="app-top-strip">
+          <NotificationBell />
+          <button className="btn-icon theme-toggle" onClick={toggleTheme} title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}>
+            {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+          </button>
+        </div>
         <main className="main-content">{children}</main>
       </div>
     </div>

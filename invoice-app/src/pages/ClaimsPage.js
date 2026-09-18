@@ -45,6 +45,21 @@ export default function ClaimsPage() {
     }
   }, [user.role]);
 
+  // Dashboard quick-create tiles ("From photo" / "Enter manually") link
+  // here with ?new=1&mode=photo|manual — both just open this same combined
+  // form; "from photo" additionally focuses the photo picker, since the
+  // photo upload has always been an optional accelerator on this one form,
+  // not a separate flow.
+  useEffect(() => {
+    if (searchParams.get('new') !== '1' || user.role === 'worker') return;
+    setShowForm(true);
+    if (searchParams.get('mode') === 'photo') {
+      // Wait for the form (and its file input) to actually render.
+      requestAnimationFrame(() => photoInputRef.current?.click());
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const setField = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
 
   const handlePhotoUpload = async (e) => {

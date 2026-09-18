@@ -3,6 +3,7 @@ import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
 import { AuthProvider } from './context/AuthContext';
+import { ThemeProvider } from './context/ThemeContext';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import AppLayout from './components/layout/AppLayout';
 
@@ -21,9 +22,11 @@ import ManagerFolderPage from './pages/ManagerFolderPage';
 import UsersPage from './pages/UsersPage';
 import OnboardingPage from './pages/OnboardingPage';
 import InvoiceTemplatesSettingsPage from './pages/InvoiceTemplatesSettingsPage';
+import MyDocumentsPage from './pages/MyDocumentsPage';
 
 function App() {
   return (
+    <ThemeProvider>
     <AuthProvider>
       <BrowserRouter>
         <Routes>
@@ -99,6 +102,14 @@ function App() {
             }
           />
           <Route
+            path="/documents"
+            element={
+              <ProtectedRoute>
+                <AppLayout><MyDocumentsPage /></AppLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/settings/invoice-templates"
             element={
               <ProtectedRoute roles={['owner']}>
@@ -112,6 +123,7 @@ function App() {
       </BrowserRouter>
       <ToastContainer position="top-right" autoClose={3000} hideProgressBar />
     </AuthProvider>
+    </ThemeProvider>
   );
 }
 

@@ -1,25 +1,95 @@
 *, *::before, *::after { box-sizing: border-box; }
 
+/* Design tokens — authenticated app, matching the brand identity already
+   established on the public LandingPage (navy/olive/cream — see that
+   page's own --navy/--olive/--bg-cream custom properties and its
+   .landing-preview-* dashboard mockup, which is the reference this token
+   set is built to actually match, not just approximate). The
+   [data-theme="dark"] block is what ThemeContext's toggle switches by
+   setting that attribute on <html>. */
+:root {
+  --bg: #FCF9F3;
+  --surface: #fff;
+  --surface-alt: #FCF9F3;
+  --text-primary: #0B1220;
+  --text-body: #1A2C3F;
+  --text-secondary: rgba(26, 44, 63, 0.78);
+  --text-muted: rgba(26, 44, 63, 0.62);
+  --text-faint: rgba(26, 44, 63, 0.45);
+  --border: rgba(26, 44, 63, 0.1);
+  --border-subtle: rgba(26, 44, 63, 0.06);
+  --primary: #53603A;
+  --primary-hover: #576A41;
+  --primary-soft: rgba(83, 96, 58, 0.12);
+  --accent-green: #53603A;
+  --accent-green-dark: #576A41;
+  --accent-green-soft: #EEEEE2;
+  --btn-secondary-bg: #EEEEE2;
+  --btn-secondary-bg-hover: #F1E5D5;
+  --sidebar-bg: #0B1220;
+  --sidebar-text: rgba(255, 255, 255, 0.6);
+  --sidebar-hover: rgba(255, 255, 255, 0.08);
+
+  --badge-blue-bg: #E1E9F2;   --badge-blue-text: #0B1220;
+  --badge-yellow-bg: #fefcbf; --badge-yellow-text: #744210;
+  --badge-orange-bg: #fed7aa; --badge-orange-text: #7b341e;
+  --badge-green-bg: #E6F3E6;  --badge-green-text: #22543d;
+  --badge-red-bg: #fed7d7;    --badge-red-text: #742a2a;
+  --badge-gray-bg: #EEEEE2;   --badge-gray-text: #53603A;
+}
+
+:root[data-theme="dark"] {
+  --bg: #0B1220;
+  --surface: #1A2C3F;
+  --surface-alt: #14202e;
+  --text-primary: #FCF9F3;
+  --text-body: #F1E5D5;
+  --text-secondary: rgba(252, 249, 243, 0.78);
+  --text-muted: rgba(252, 249, 243, 0.6);
+  --text-faint: rgba(252, 249, 243, 0.42);
+  --border: rgba(252, 249, 243, 0.12);
+  --border-subtle: rgba(252, 249, 243, 0.07);
+  --primary: #8CA35C;
+  --primary-hover: #9DB672;
+  --primary-soft: rgba(140, 163, 92, 0.2);
+  --accent-green: #8CA35C;
+  --accent-green-dark: #9DB672;
+  --accent-green-soft: rgba(140, 163, 92, 0.15);
+  --btn-secondary-bg: #24374d;
+  --btn-secondary-bg-hover: #2e4560;
+  --sidebar-bg: #060a12;
+  --sidebar-text: rgba(255, 255, 255, 0.6);
+  --sidebar-hover: rgba(255, 255, 255, 0.08);
+
+  --badge-blue-bg: rgba(225, 233, 242, 0.18);  --badge-blue-text: #c3d3e8;
+  --badge-yellow-bg: rgba(236, 201, 75, 0.18); --badge-yellow-text: #f6e05e;
+  --badge-orange-bg: rgba(237, 137, 54, 0.18); --badge-orange-text: #fbd38d;
+  --badge-green-bg: rgba(140, 163, 92, 0.2);   --badge-green-text: #c1d19c;
+  --badge-red-bg: rgba(245, 101, 101, 0.18);   --badge-red-text: #feb2b2;
+  --badge-gray-bg: rgba(252, 249, 243, 0.1);   --badge-gray-text: #d8d0c0;
+}
+
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  background: #f7fafc;
-  color: #2d3748;
+  background: var(--bg);
+  color: var(--text-body);
   -webkit-font-smoothing: antialiased;
+  transition: background 0.15s, color 0.15s;
 }
 
 /* Form basics */
 .form-group { display: flex; flex-direction: column; gap: 0.35rem; flex: 1; }
-.form-group label { font-size: 0.82rem; font-weight: 600; color: #4a5568; }
+.form-group label { font-size: 0.82rem; font-weight: 600; color: var(--text-secondary); }
 .form-group input,
 .form-group select,
 .form-group textarea {
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--border);
   border-radius: 8px;
   padding: 0.5rem 0.75rem;
   font-size: 0.9rem;
-  color: #2d3748;
-  background: #fff;
+  color: var(--text-body);
+  background: var(--surface);
   transition: border-color 0.15s;
   font-family: inherit;
   resize: vertical;
@@ -28,13 +98,13 @@ body {
 .form-group select:focus,
 .form-group textarea:focus {
   outline: none;
-  border-color: #3182ce;
-  box-shadow: 0 0 0 3px rgba(49, 130, 206, 0.15);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-soft);
 }
 .form-group input:disabled,
 .form-group textarea:disabled {
-  background: #f7fafc;
-  color: #718096;
+  background: var(--surface-alt);
+  color: var(--text-muted);
   cursor: not-allowed;
 }
 
@@ -56,10 +126,10 @@ body {
   text-decoration: none;
 }
 .btn:disabled { opacity: 0.6; cursor: not-allowed; }
-.btn-primary { background: #3182ce; color: #fff; }
-.btn-primary:hover:not(:disabled) { background: #2b6cb0; }
-.btn-secondary { background: #edf2f7; color: #4a5568; }
-.btn-secondary:hover:not(:disabled) { background: #e2e8f0; }
+.btn-primary { background: var(--primary); color: #fff; }
+.btn-primary:hover:not(:disabled) { background: var(--primary-hover); }
+.btn-secondary { background: var(--btn-secondary-bg); color: var(--text-secondary); }
+.btn-secondary:hover:not(:disabled) { background: var(--btn-secondary-bg-hover); }
 .btn-full { width: 100%; justify-content: center; }
 .btn-sm { font-size: 0.8rem; padding: 0.35rem 0.7rem; }
 
@@ -72,21 +142,21 @@ body {
   text-transform: capitalize;
   white-space: nowrap;
 }
-.status-open { background: #bee3f8; color: #2c5282; }
-.status-in_progress { background: #fefcbf; color: #744210; }
-.status-pending_approval { background: #fed7aa; color: #7b341e; }
-.status-submitted { background: #fed7aa; color: #7b341e; }
-.status-approved { background: #c6f6d5; color: #22543d; }
-.status-rejected { background: #fed7d7; color: #742a2a; }
-.status-draft { background: #e2e8f0; color: #4a5568; }
+.status-open { background: var(--badge-blue-bg); color: var(--badge-blue-text); }
+.status-in_progress { background: var(--badge-yellow-bg); color: var(--badge-yellow-text); }
+.status-pending_approval { background: var(--badge-orange-bg); color: var(--badge-orange-text); }
+.status-submitted { background: var(--badge-orange-bg); color: var(--badge-orange-text); }
+.status-approved { background: var(--badge-green-bg); color: var(--badge-green-text); }
+.status-rejected { background: var(--badge-red-bg); color: var(--badge-red-text); }
+.status-draft { background: var(--badge-gray-bg); color: var(--badge-gray-text); }
 
 /* Part purchase statuses */
-.status-ordered { background: #bee3f8; color: #2c5282; }
-.status-shipped { background: #fefcbf; color: #744210; }
-.status-delivered { background: #c6f6d5; color: #22543d; }
-.status-returned { background: #fed7aa; color: #7b341e; }
-.status-refunded { background: #e2e8f0; color: #4a5568; }
-.status-cancelled { background: #fed7d7; color: #742a2a; }
+.status-ordered { background: var(--badge-blue-bg); color: var(--badge-blue-text); }
+.status-shipped { background: var(--badge-yellow-bg); color: var(--badge-yellow-text); }
+.status-delivered { background: var(--badge-green-bg); color: var(--badge-green-text); }
+.status-returned { background: var(--badge-orange-bg); color: var(--badge-orange-text); }
+.status-refunded { background: var(--badge-gray-bg); color: var(--badge-gray-text); }
+.status-cancelled { background: var(--badge-red-bg); color: var(--badge-red-text); }
 
 .loading-screen {
   display: flex;
@@ -94,5 +164,6 @@ body {
   justify-content: center;
   min-height: 100vh;
   font-size: 1rem;
-  color: #718096;
+  color: var(--text-muted);
+  background: var(--bg);
 }

@@ -15,8 +15,9 @@ const router = express.Router();
 router.get('/business-types', authenticate, (req, res) => {
   const list = Object.entries(INDUSTRY_TEMPLATES)
     .filter(([key]) => key !== 'general')
-    .map(([key, t]) => ({ key, label: t.label, fields: t.fields }));
-  res.json({ businessTypes: list, general: { key: 'general', label: INDUSTRY_TEMPLATES.general.label, fields: INDUSTRY_TEMPLATES.general.fields } });
+    .map(([key, t]) => ({ key, label: t.label, description: t.description, fields: t.fields }));
+  const general = { key: 'general', label: INDUSTRY_TEMPLATES.general.label, description: INDUSTRY_TEMPLATES.general.description, fields: INDUSTRY_TEMPLATES.general.fields };
+  res.json({ businessTypes: list, general });
 });
 
 // GET /api/onboarding/status — resume state for the wizard, plus the

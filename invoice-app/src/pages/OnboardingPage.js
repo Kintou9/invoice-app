@@ -1,11 +1,18 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
+import { FileText } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import BusinessTypeStep from '../components/onboarding/BusinessTypeStep';
 import CustomizeStep from '../components/onboarding/CustomizeStep';
 import './OnboardingPage.css';
+
+const STEPS = [
+  { key: 'business_type', label: 'Business type' },
+  { key: 'customize', label: 'Customize invoice' },
+  { key: 'done', label: 'Ready to go' },
+];
 
 const DEFAULT_FEATURES = { claim_number: false, po_reference: false, photos: true, receipts: false, notes: true };
 
@@ -95,14 +102,40 @@ export default function OnboardingPage() {
 
   if (loading) return <div className="loading-screen">Loading...</div>;
 
+  const stepIndex = STEPS.findIndex((s) => s.key === step);
+
   return (
     <div className="onboarding-page">
-      <div className="onboarding-shell">
-        <div className="onboarding-steps-indicator">
-          <span className={step === 'business_type' ? 'active' : 'done'}>1. Business type</span>
-          <span className={step === 'customize' ? 'active' : ''}>2. Customize</span>
+      <header className="onboarding-header">
+        <div className="onboarding-brand">
+          <FileText size={22} />
+          <span>Trackly</span>
         </div>
+        <ol className="onboarding-steps-indicator">
+          {STEPS.map((s, i) => (
+            <li key={s.key} className={i < stepIndex ? 'done' : i === stepIndex ? 'active' : ''}>
+              <span className="onboarding-step-num">{i < stepIndex ? '✓' : i + 1}</span>
+              {s.label}
+              {i < STEPS.length - 1 && <span className="onboarding-step-connector" aria-hidden="true" />}
+            </li>
+          ))}
+        </ol>
+        <button
+          type="button"
+          className="onboarding-save-exit"
+          onClick={() => {
+            // Progress up to now is already persisted via the PATCH calls
+            // fired on each selection — this just lets the owner leave
+            // without being immediately redirected back by ProtectedRoute.
+            sessionStorage.setItem('onboarding_dismissed', '1');
+            navigate('/dashboard');
+          }}
+        >
+          Save &amp; exit
+        </button>
+      </header>
 
+      <div className="onboarding-shell">
         {step === 'business_type' ? (
           <BusinessTypeStep selectedKey={businessType} onSelect={handleSelect} onContinue={handleContinue} onUseGeneral={handleUseGeneral} />
         ) : (

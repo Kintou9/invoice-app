@@ -8,12 +8,12 @@ const router = express.Router();
 const MAX_LIMIT = 200;
 const DEFAULT_LIMIT = 50;
 
-// GET /api/audit-log — owner-only, org-scoped, paginated, optionally
+// GET /api/audit-log — owner/manager, org-scoped, paginated, optionally
 // filtered by entity_type/entity_id/action. Joins through
 // organization_members -> users so the response shows a name, not just a
 // bare membership id, matching how every other list endpoint in this app
 // resolves an actor/assignee to a display name.
-router.get('/', authenticate, authorize('owner'), async (req, res, next) => {
+router.get('/', authenticate, authorize('owner', 'manager'), async (req, res, next) => {
   try {
     const { entity_type, entity_id, action } = req.query;
     const limit = Math.min(parseInt(req.query.limit, 10) || DEFAULT_LIMIT, MAX_LIMIT);
