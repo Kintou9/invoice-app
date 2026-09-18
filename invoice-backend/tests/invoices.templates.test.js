@@ -135,3 +135,14 @@ describe('historical invoices unchanged after a template edit', () => {
     expect(joinedTemplateQuery).toBe(false);
   });
 });
+
+describe('GET /api/invoices — list includes computed invoice_total', () => {
+  test('query selects a LEFT JOIN LATERAL total from invoice_line_items', async () => {
+    db.query.mockResolvedValueOnce({ rows: [] });
+    const res = await request(app, { method: 'GET', url: '/api/invoices', token: ownerToken });
+    expect(res.status).toBe(200);
+    const [sql] = db.query.mock.calls[0];
+    expect(sql).toContain('invoice_total');
+    expect(sql).toContain('LEFT JOIN LATERAL');
+  });
+});

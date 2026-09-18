@@ -6,7 +6,7 @@
   padding: 1px 7px;
   border-radius: 999px;
   background: #ebf8ff;
-  color: #2b6cb0;
+  color: var(--primary-hover);
   font-size: 0.7rem;
   font-weight: 600;
 }

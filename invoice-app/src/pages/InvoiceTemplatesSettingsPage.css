@@ -15,8 +15,8 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: #fff;
-  border: 1px solid #e2e8f0;
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: 8px;
   padding: 0.75rem 1rem;
 }
@@ -31,7 +31,7 @@
   min-height: 44px;
 }
 
-.invoice-template-name { font-weight: 600; color: #2d3748; }
+.invoice-template-name { font-weight: 600; color: var(--text-body); }
 
 .invoice-template-row-actions {
   display: flex;

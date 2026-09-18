@@ -1,0 +1,153 @@
+import { useEffect, useRef, useState } from 'react';
+import { NavLink, Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
+import api from '../../services/api';
+import {
+  LayoutDashboard, ClipboardList, FileText, Users, Folder, Store, Palette, Files,
+  Building2, ChevronDown, Check, LogOut,
+} from 'lucide-react';
+import './Sidebar.css';
+
+const navItems = {
+  owner: [
+    { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+    { to: '/claims', icon: ClipboardList, label: 'Claims' },
+    { to: '/invoices', icon: FileText, label: 'Invoices' },
+    { to: '/users', icon: Users, label: 'Users' },
+    { to: '/manager-folder', icon: Folder, label: 'Manager Folder' },
+    { to: '/suppliers', icon: Store, label: 'Suppliers' },
+    { to: '/settings/invoice-templates', icon: Palette, label: 'Invoice Templates' },
+  ],
+  manager: [
+    { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+    { to: '/claims', icon: ClipboardList, label: 'Claims' },
+    { to: '/invoices', icon: FileText, label: 'Invoices' },
+    { to: '/manager-folder', icon: Folder, label: 'Manager Folder' },
+  ],
+  worker: [
+    { to: '/dashboard', icon: LayoutDashboard, label: 'My dashboard' },
+    { to: '/claims', icon: ClipboardList, label: 'My claims' },
+    { to: '/invoices', icon: FileText, label: 'My invoices' },
+    { to: '/documents', icon: Files, label: 'My documents' },
+  ],
+};
+
+function initials(name) {
+  if (!name) return '?';
+  const parts = name.trim().split(/\s+/);
+  return ((parts[0]?.[0] || '') + (parts[1]?.[0] || '')).toUpperCase();
+}
+
+export default function Sidebar() {
+  const { user, logout, switchOrganization } = useAuth();
+  const navigate = useNavigate();
+  const items = navItems[user?.role] || [];
+
+  const [organizations, setOrganizations] = useState([]);
+  const [orgOpen, setOrgOpen] = useState(false);
+  const [switching, setSwitching] = useState(false);
+  const orgRef = useRef(null);
+
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const userMenuRef = useRef(null);
+
+  // Fetched once — org membership changing mid-session is rare enough that
+  // requiring a fresh load to see a new one is fine (same posture as the
+  // Navbar this replaces).
+  useEffect(() => {
+    api.get('/auth/organizations').then((r) => setOrganizations(r.data)).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    const handleClick = (e) => {
+      if (orgRef.current && !orgRef.current.contains(e.target)) setOrgOpen(false);
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target)) setUserMenuOpen(false);
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  const handleSwitchOrg = async (organizationId) => {
+    setOrgOpen(false);
+    if (organizationId === user.organizationId) return;
+    setSwitching(true);
+    try {
+      await switchOrganization(organizationId);
+      // Hard reload rather than client-side navigate: every page's data is
+      // org-scoped, and there's no global refetch-everything mechanism to
+      // invalidate it cleanly after the token changes underneath it.
+      window.location.href = '/dashboard';
+    } catch {
+      setSwitching(false);
+    }
+  };
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
+
+  return (
+    <aside className="sidebar">
+      <Link to="/dashboard" className="sidebar-brand">
+        <FileText size={22} />
+        <span>Trackly</span>
+      </Link>
+
+      {organizations.length > 1 ? (
+        <div className="sidebar-org" ref={orgRef}>
+          <button className="sidebar-org-btn" onClick={() => setOrgOpen((o) => !o)} disabled={switching} title="Switch organization">
+            <Building2 size={15} />
+            <span className="sidebar-org-name">{user?.organizationName}</span>
+            <ChevronDown size={14} />
+          </button>
+          {orgOpen && (
+            <div className="sidebar-dropdown sidebar-org-dropdown">
+              {organizations.map((org) => (
+                <button key={org.organizationId} className="sidebar-dropdown-item" onClick={() => handleSwitchOrg(org.organizationId)}>
+                  <span>
+                    {org.organizationName}
+                    <span className="sidebar-org-role">{org.role}</span>
+                  </span>
+                  {org.organizationId === user.organizationId && <Check size={14} />}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="sidebar-org sidebar-org-static">
+          <Building2 size={15} />
+          <span className="sidebar-org-name">{user?.organizationName}</span>
+        </div>
+      )}
+
+      <nav className="sidebar-nav">
+        {items.map(({ to, icon: Icon, label }) => (
+          <NavLink key={to} to={to} end={to === '/dashboard'} className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
+            <Icon size={18} />
+            <span>{label}</span>
+          </NavLink>
+        ))}
+      </nav>
+
+      <div className="sidebar-user" ref={userMenuRef}>
+        {userMenuOpen && (
+          <div className="sidebar-dropdown sidebar-user-dropdown">
+            <button className="sidebar-dropdown-item" onClick={handleLogout}>
+              <LogOut size={15} /> Sign out
+            </button>
+          </div>
+        )}
+        <button className="sidebar-user-btn" onClick={() => setUserMenuOpen((o) => !o)}>
+          <span className="sidebar-avatar">{initials(user?.name)}</span>
+          <span className="sidebar-user-info">
+            <span className="sidebar-user-name">{user?.name}</span>
+            <span className="sidebar-user-role">{user?.role}</span>
+          </span>
+          <ChevronDown size={14} />
+        </button>
+      </div>
+    </aside>
+  );
+}

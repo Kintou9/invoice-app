@@ -65,24 +65,37 @@ router.get('/', authenticate, async (req, res, next) => {
     let query, params;
 
     // technician_id is organization_members.id, not users.id — join through
-    // the membership to get a display name.
+    // the membership to get a display name. The lateral join adds a
+    // computed line-item total per invoice (0 for an org/invoice that's
+    // never used the template/line-items feature) — purely additive, every
+    // existing consumer of this list just ignores the extra field.
     if (req.user.role === 'worker') {
       query = `
-        SELECT i.*, c.claim_number, c.title AS claim_title, u.name AS technician_name
+        SELECT i.*, c.claim_number, c.title AS claim_title,
+               c.customer_name, c.customer_phone, c.job_address, c.date_of_service,
+               u.name AS technician_name, COALESCE(totals.total, 0) AS invoice_total
         FROM invoices i
         JOIN claims c ON i.claim_id = c.id
         LEFT JOIN organization_members om ON i.technician_id = om.id
         LEFT JOIN users u ON om.user_id = u.id
+        LEFT JOIN LATERAL (
+          SELECT SUM(total_price) AS total FROM invoice_line_items WHERE invoice_id = i.id
+        ) totals ON true
         WHERE i.organization_id = $1 AND i.technician_id = $2 ${claim_id ? 'AND i.claim_id = $3' : ''}
         ORDER BY i.created_at DESC`;
       params = claim_id ? [req.user.organizationId, req.user.membershipId, claim_id] : [req.user.organizationId, req.user.membershipId];
     } else {
       query = `
-        SELECT i.*, c.claim_number, c.title AS claim_title, u.name AS technician_name
+        SELECT i.*, c.claim_number, c.title AS claim_title,
+               c.customer_name, c.customer_phone, c.job_address, c.date_of_service,
+               u.name AS technician_name, COALESCE(totals.total, 0) AS invoice_total
         FROM invoices i
         JOIN claims c ON i.claim_id = c.id
         LEFT JOIN organization_members om ON i.technician_id = om.id
         LEFT JOIN users u ON om.user_id = u.id
+        LEFT JOIN LATERAL (
+          SELECT SUM(total_price) AS total FROM invoice_line_items WHERE invoice_id = i.id
+        ) totals ON true
         WHERE i.organization_id = $1 ${claim_id ? 'AND i.claim_id = $2' : ''}
         ORDER BY i.created_at DESC`;
       params = claim_id ? [req.user.organizationId, claim_id] : [req.user.organizationId];

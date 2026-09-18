@@ -5,7 +5,7 @@
 }
 
 .template-editor-fieldset {
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--border);
   border-radius: 10px;
   padding: 1rem 1.1rem 1.1rem;
   display: flex;
@@ -16,14 +16,14 @@
 .template-editor-fieldset legend {
   font-size: 0.85rem;
   font-weight: 600;
-  color: #2d3748;
+  color: var(--text-body);
   padding: 0 0.4rem;
 }
 
 .template-editor-hint {
   margin: 0;
   font-size: 0.78rem;
-  color: #718096;
+  color: var(--text-muted);
 }
 
 .template-editor-logo-row {
@@ -37,8 +37,8 @@
   height: 48px;
   object-fit: contain;
   border-radius: 8px;
-  border: 1px solid #e2e8f0;
-  background: #fff;
+  border: 1px solid var(--border);
+  background: var(--surface);
 }
 
 .template-editor-upload-btn {
@@ -56,14 +56,14 @@
   border-bottom: 1px solid #f0f4f8;
 }
 .template-editor-field-row:last-child { border-bottom: none; }
-.template-editor-field-label { flex: 1; min-width: 140px; font-size: 0.88rem; color: #2d3748; }
+.template-editor-field-label { flex: 1; min-width: 140px; font-size: 0.88rem; color: var(--text-body); }
 
 .template-editor-checkbox {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
   font-size: 0.85rem;
-  color: #4a5568;
+  color: var(--text-secondary);
   cursor: pointer;
   min-height: 44px;
 }
@@ -76,7 +76,7 @@
 }
 
 .template-editor-advanced {
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--border);
   border-radius: 10px;
   padding: 0.75rem 1rem;
 }
@@ -84,7 +84,7 @@
   cursor: pointer;
   font-weight: 600;
   font-size: 0.85rem;
-  color: #4a5568;
+  color: var(--text-secondary);
 }
 .template-editor-advanced > *:not(summary) { margin-top: 0.6rem; }
 

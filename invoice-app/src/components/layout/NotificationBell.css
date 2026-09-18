@@ -1,0 +1,96 @@
+.btn-icon {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0.4rem;
+  display: flex;
+  align-items: center;
+  border-radius: 8px;
+  transition: color 0.15s, background 0.15s;
+}
+.btn-icon:hover { color: var(--text-primary); background: var(--surface-alt); }
+
+.notification-wrap { position: relative; }
+.notification-bell { position: relative; }
+
+.notification-badge {
+  position: absolute;
+  top: -2px;
+  right: 0px;
+  background: var(--badge-red-text);
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 700;
+  line-height: 1;
+  padding: 3px 5px;
+  border-radius: 999px;
+  min-width: 16px;
+  text-align: center;
+}
+
+.notification-panel {
+  position: absolute;
+  top: calc(100% + 12px);
+  right: -8px;
+  width: 320px;
+  max-height: 400px;
+  background: var(--surface);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.18);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  z-index: 100;
+}
+
+.notification-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.notification-mark-all {
+  background: none;
+  border: none;
+  color: var(--primary);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+}
+.notification-mark-all:hover { text-decoration: underline; }
+
+.notification-list { overflow-y: auto; }
+
+.notification-empty {
+  padding: 1.5rem 1rem;
+  text-align: center;
+  color: var(--text-faint);
+  font-size: 0.85rem;
+}
+
+.notification-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border-subtle);
+  padding: 0.7rem 1rem;
+  cursor: pointer;
+  font-family: inherit;
+}
+.notification-item:hover { background: var(--surface-alt); }
+.notification-item.notification-unread { background: var(--primary-soft); }
+
+.notification-message { font-size: 0.85rem; color: var(--text-body); }
+.notification-time { font-size: 0.72rem; color: var(--text-faint); }
