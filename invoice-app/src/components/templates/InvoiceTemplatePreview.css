@@ -1,0 +1,81 @@
+.template-preview {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1.5rem;
+  font-size: 0.85rem;
+  color: #2d3748;
+}
+
+.template-preview-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid #e2e8f0;
+  margin-bottom: 0.75rem;
+}
+
+.template-preview-logo {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+  border-radius: 6px;
+}
+
+.template-preview-business { font-weight: 700; font-size: 1rem; }
+.template-preview-contact { color: #718096; font-size: 0.78rem; }
+
+.template-preview-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  color: #4a5568;
+  font-size: 0.8rem;
+  margin-bottom: 0.75rem;
+}
+
+.template-preview-section { margin-bottom: 0.9rem; }
+.template-preview-section h4 {
+  margin: 0 0 0.5rem;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #718096;
+}
+
+.template-preview-field {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.25rem 0;
+  border-bottom: 1px dashed #edf2f7;
+}
+.template-preview-field-label { color: #4a5568; }
+.template-preview-field-value { color: #2d3748; font-weight: 500; text-align: right; }
+.template-preview-internal-tag {
+  margin-left: 0.35rem;
+  font-size: 0.68rem;
+  color: #c53030;
+  border: 1px solid #feb2b2;
+  border-radius: 999px;
+  padding: 0 6px;
+}
+
+.template-preview-line-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.25rem 0;
+}
+
+.template-preview-totals {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.2rem;
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.template-preview-section p { margin: 0; color: #4a5568; white-space: pre-wrap; }

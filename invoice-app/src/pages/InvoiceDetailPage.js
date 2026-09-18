@@ -4,7 +4,9 @@ import { toast } from 'react-toastify';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import PartsSection from '../components/parts/PartsSection';
-import { Camera, Sparkles, Send, CheckCircle, XCircle, Upload, User, MapPin, Wrench } from 'lucide-react';
+import TemplateFieldsSection from '../components/invoices/TemplateFieldsSection';
+import LineItemsSection from '../components/invoices/LineItemsSection';
+import { Camera, Sparkles, Send, CheckCircle, XCircle, Upload, User, MapPin, Wrench, FileDown, RefreshCw } from 'lucide-react';
 import './InvoiceDetailPage.css';
 
 export default function InvoiceDetailPage() {
@@ -22,6 +24,9 @@ export default function InvoiceDetailPage() {
   const [techNotes, setTechNotes] = useState('');
   const [form, setForm] = useState({ model_number: '', serial_number: '', issue_description: '' });
   const [suggestedParts, setSuggestedParts] = useState([]);
+  const [fieldValues, setFieldValues] = useState({});
+  const [templates, setTemplates] = useState([]);
+  const [pdfLoading, setPdfLoading] = useState(false);
 
   const isTech = user.role === 'worker';
   const isManager = user.role === 'manager' || user.role === 'owner';
@@ -35,21 +40,75 @@ export default function InvoiceDetailPage() {
         serial_number: r.data.serial_number || '',
         issue_description: r.data.issue_description || r.data.ai_generated_description || '',
       });
+      setFieldValues(r.data.field_values || {});
     }).finally(() => setLoading(false));
 
   // `load` is a new function every render; adding it as a dep would re-fetch on every render.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load(); }, [id]);
 
+  useEffect(() => { api.get('/invoice-field-templates').then((r) => setTemplates(r.data)).catch(() => {}); }, []);
+
   const handleSave = async () => {
     setSaving(true);
     try {
-      await api.patch(`/invoices/${id}`, form);
+      await api.patch(`/invoices/${id}`, { ...form, field_values: fieldValues });
       toast.success('Saved');
     } catch (err) {
       toast.error(err.response?.data?.error || 'Save failed');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleFieldChange = (fieldId, value) => setFieldValues((v) => ({ ...v, [fieldId]: value }));
+
+  const handleTemplateSwitch = async (newTemplateId) => {
+    const newTemplate = templates.find((t) => t.id === newTemplateId);
+    const newFieldIds = new Set((newTemplate?.fields || []).map((f) => f.id));
+    const droppedLabels = (invoice.field_template_snapshot?.fields || [])
+      .filter((f) => fieldValues[f.id] && !newFieldIds.has(f.id))
+      .map((f) => f.label);
+
+    if (droppedLabels.length > 0) {
+      const ok = window.confirm(`Switching templates will discard values entered for: ${droppedLabels.join(', ')}. Continue?`);
+      if (!ok) return;
+    }
+
+    try {
+      await api.patch(`/invoices/${id}`, { field_template_id: newTemplateId || null });
+      toast.success('Template updated');
+      load();
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Could not switch template');
+    }
+  };
+
+  const handleGeneratePdf = async () => {
+    setPdfLoading(true);
+    try {
+      const res = await api.post(`/invoices/${id}/generate-pdf`);
+      window.open(res.data.pdf_url, '_blank', 'noopener');
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Could not generate PDF');
+    } finally {
+      setPdfLoading(false);
+    }
+  };
+
+  const handleDownloadPdf = async () => {
+    setPdfLoading(true);
+    try {
+      const res = await api.get(`/invoices/${id}/pdf`);
+      window.open(res.data.pdf_url, '_blank', 'noopener');
+    } catch (err) {
+      if (err.response?.status === 404) {
+        await handleGeneratePdf();
+      } else {
+        toast.error(err.response?.data?.error || 'Could not load PDF');
+      }
+    } finally {
+      setPdfLoading(false);
     }
   };
 
@@ -137,7 +196,7 @@ export default function InvoiceDetailPage() {
 
   const handleSubmit = async () => {
     try {
-      await api.patch(`/invoices/${id}`, form);
+      await api.patch(`/invoices/${id}`, { ...form, field_values: fieldValues });
       await api.post(`/invoices/${id}/submit`);
       toast.success('Invoice submitted for review');
       load();
@@ -173,8 +232,26 @@ export default function InvoiceDetailPage() {
           <h1>Invoice — {invoice.claim_number}</h1>
           <p className="invoice-subtitle">{invoice.claim_title} · {invoice.technician_name}</p>
         </div>
-        <span className={`status-badge status-${invoice.status}`}>{invoice.status.replace('_', ' ')}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          {invoice.status !== 'draft' && (
+            <button className="btn btn-secondary" onClick={handleDownloadPdf} disabled={pdfLoading}>
+              {invoice.pdf_blob_url ? <FileDown size={16} /> : <RefreshCw size={16} />}
+              {pdfLoading ? 'Loading...' : invoice.pdf_blob_url ? 'Download PDF' : 'Generate PDF'}
+            </button>
+          )}
+          <span className={`status-badge status-${invoice.status}`}>{invoice.status.replace('_', ' ')}</span>
+        </div>
       </div>
+
+      {isEditable && templates.length > 1 && (
+        <div className="form-group" style={{ maxWidth: 320, marginBottom: '1rem' }}>
+          <label htmlFor="field-template-switch">Invoice Template</label>
+          <select id="field-template-switch" value={invoice.field_template_id || ''} onChange={(e) => handleTemplateSwitch(e.target.value)}>
+            <option value="">No template</option>
+            {templates.map((t) => <option key={t.id} value={t.id}>{t.name}{t.is_default ? ' (default)' : ''}</option>)}
+          </select>
+        </div>
+      )}
 
       {invoice.manager_notes && (
         <div className={`manager-notes-banner ${invoice.status === 'rejected' ? 'rejected' : ''}`}>
@@ -223,6 +300,13 @@ export default function InvoiceDetailPage() {
             </div>
           </section>
         )}
+
+        <TemplateFieldsSection
+          snapshot={invoice.field_template_snapshot}
+          values={fieldValues}
+          onChange={handleFieldChange}
+          isEditable={isEditable}
+        />
 
         {/* Equipment Info */}
         <section className="card">
@@ -372,6 +456,14 @@ export default function InvoiceDetailPage() {
 
           <PartsSection invoiceId={id} parts={invoice.parts || []} isEditable={isEditable} onUpdate={load} />
         </section>
+
+        <LineItemsSection
+          invoiceId={id}
+          lineItems={invoice.line_items || []}
+          taxRate={invoice.tax_rate || 0}
+          isEditable={isEditable}
+          onUpdate={load}
+        />
 
         {/* Submit */}
         {isTech && isEditable && (

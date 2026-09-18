@@ -1,0 +1,32 @@
+.onboarding-page {
+  min-height: 100vh;
+  background: #f0f4f8;
+  padding: 2rem 1rem;
+  display: flex;
+  justify-content: center;
+}
+
+.onboarding-shell {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+  padding: 2rem;
+  width: 100%;
+  max-width: 760px;
+  align-self: flex-start;
+}
+
+.onboarding-steps-indicator {
+  display: flex;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #a0aec0;
+}
+.onboarding-steps-indicator .active { color: #3182ce; }
+.onboarding-steps-indicator .done { color: #2f855a; }
+
+@media (max-width: 500px) {
+  .onboarding-shell { padding: 1.25rem; }
+}

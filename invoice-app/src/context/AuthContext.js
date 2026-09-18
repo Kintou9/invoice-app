@@ -66,8 +66,17 @@ export function AuthProvider({ children }) {
     setUser(null);
   };
 
+  // Re-reads /auth/me without touching the token — used after onboarding
+  // completes so the owner's onboardingStatus flips to 'completed' and the
+  // ProtectedRoute redirect stops firing, without forcing a re-login.
+  const refreshUser = async () => {
+    const res = await api.get('/auth/me');
+    setUser(res.data);
+    return res.data;
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, acceptInvite, switchOrganization, forgotPassword, resetPassword, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, register, acceptInvite, switchOrganization, forgotPassword, resetPassword, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

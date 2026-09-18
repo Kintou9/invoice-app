@@ -3,7 +3,7 @@ const multer = require('multer');
 const db = require('../db');
 const authenticate = require('../middleware/authenticate');
 const authorize = require('../middleware/authorize');
-const { uploadBuffer, downloadBuffer } = require('../services/azureBlob');
+const { uploadBuffer, downloadBuffer, generateSasUrl } = require('../services/azureBlob');
 const { extractEquipmentInfo, extractClaimInfo } = require('../services/claude');
 
 const router = express.Router();
@@ -77,6 +77,29 @@ router.post('/photo/:invoiceId', authenticate, upload.single('photo'), async (re
     }
 
     res.status(201).json({ photo: rows[0], extracted });
+  } catch (err) {
+    next(err);
+  }
+});
+
+const logoUpload = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB — a logo is never large
+  fileFilter: (req, file, cb) => {
+    const allowed = ['image/jpeg', 'image/png'];
+    if (allowed.includes(file.mimetype)) cb(null, true);
+    else cb(new Error('Logo must be a JPEG or PNG image'));
+  },
+});
+
+// POST /api/upload/logo — owner uploads a business logo for an invoice
+// template. Reuses the same private-container + uploadBuffer pattern as
+// every other upload in this file.
+router.post('/logo', authenticate, authorize('owner'), logoUpload.single('logo'), async (req, res, next) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+    const blobUrl = await uploadBuffer(req.file.buffer, req.file.originalname, `logos/${req.user.organizationId}`);
+    res.status(201).json({ blob_url: blobUrl, sas_url: generateSasUrl(blobUrl, 60) });
   } catch (err) {
     next(err);
   }
