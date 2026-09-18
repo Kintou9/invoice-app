@@ -11,6 +11,9 @@ const userRoutes = require('./routes/users');
 const notificationRoutes = require('./routes/notifications');
 const purchaseRoutes = require('./routes/partPurchases');
 const auditLogRoutes = require('./routes/auditLog');
+const onboardingRoutes = require('./routes/onboarding');
+const invoiceFieldTemplateRoutes = require('./routes/invoiceFieldTemplates');
+const invoiceLineItemRoutes = require('./routes/invoiceLineItems');
 
 const app = express();
 
@@ -118,6 +121,9 @@ app.use('/api/upload', uploadRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/purchases', purchaseRoutes);
 app.use('/api/audit-log', auditLogRoutes);
+app.use('/api/onboarding', onboardingRoutes);
+app.use('/api/invoice-field-templates', invoiceFieldTemplateRoutes);
+app.use('/api/invoice-line-items', invoiceLineItemRoutes);
 
 app.use((err, req, res, next) => {
   console.error(err.stack);

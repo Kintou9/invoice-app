@@ -24,7 +24,8 @@ const router = express.Router();
 // access there, same as the old users.is_active=false behavior.
 async function getActiveMemberships(userId) {
   const { rows } = await db.query(
-    `SELECT om.id AS membership_id, om.organization_id, om.role, o.name AS organization_name
+    `SELECT om.id AS membership_id, om.organization_id, om.role, o.name AS organization_name,
+            o.onboarding_status
      FROM organization_members om
      JOIN organizations o ON o.id = om.organization_id
      WHERE om.user_id = $1 AND om.status = 'active'
@@ -62,6 +63,13 @@ function toUserResponse(user, membership) {
     role: membership.role,
     organizationId: membership.organization_id,
     organizationName: membership.organization_name,
+    // Only owners drive/see onboarding — workers and managers inherit
+    // whatever the workspace owner configured, they never onboard
+    // themselves. Falls back to 'completed' if a caller's membership
+    // object wasn't sourced from getActiveMembership (e.g. accept-invite),
+    // so a missing field can never incorrectly force an onboarding redirect
+    // for an org that already exists.
+    onboardingStatus: membership.role === 'owner' ? (membership.onboarding_status || 'completed') : null,
   };
 }
 
@@ -93,8 +101,12 @@ router.post('/register', async (req, res, next) => {
     );
     const user = userRows[0];
 
+    // Explicitly 'not_started' — this is the one place a brand-new
+    // workspace is created, so it's the one place onboarding should begin.
+    // Every other organizations row keeps the column's 'completed' default.
     const { rows: orgRows } = await client.query(
-      'INSERT INTO organizations (name) VALUES ($1) RETURNING id, name',
+      `INSERT INTO organizations (name, onboarding_status) VALUES ($1, 'not_started')
+       RETURNING id, name, onboarding_status`,
       [organizationName.trim()]
     );
     const org = orgRows[0];
@@ -108,7 +120,7 @@ router.post('/register', async (req, res, next) => {
 
     await client.query('COMMIT');
 
-    const membership = { ...memberRows[0], organization_name: org.name };
+    const membership = { ...memberRows[0], organization_name: org.name, onboarding_status: org.onboarding_status };
 
     await logAction({
       organizationId: org.id,

@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import Navbar from './Navbar';
-import { LayoutDashboard, ClipboardList, FileText, Users, Folder, Store } from 'lucide-react';
+import { LayoutDashboard, ClipboardList, FileText, Users, Folder, Store, Palette } from 'lucide-react';
 import './AppLayout.css';
 
 const navItems = {
@@ -12,6 +12,7 @@ const navItems = {
     { to: '/users', icon: Users, label: 'Users' },
     { to: '/manager-folder', icon: Folder, label: 'Manager Folder' },
     { to: '/suppliers', icon: Store, label: 'Suppliers' },
+    { to: '/settings/invoice-templates', icon: Palette, label: 'Invoice Templates' },
   ],
   manager: [
     { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },

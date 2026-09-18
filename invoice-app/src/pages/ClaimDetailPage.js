@@ -12,6 +12,13 @@ export default function ClaimDetailPage() {
   const [invoices, setInvoices] = useState([]);
   const [templates, setTemplates] = useState([]);
   const [selectedTemplate, setSelectedTemplate] = useState('');
+  // Structured invoice field template (invoice_field_templates) — a
+  // separate, unrelated concept from `templates`/`selectedTemplate` above,
+  // which pick an uploaded fillable document. Only shown when the org has
+  // more than one, so a zero/one-template org's create flow looks exactly
+  // like it always has.
+  const [fieldTemplates, setFieldTemplates] = useState([]);
+  const [selectedFieldTemplate, setSelectedFieldTemplate] = useState('');
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
 
@@ -20,18 +27,25 @@ export default function ClaimDetailPage() {
       api.get(`/claims/${id}`),
       api.get(`/invoices?claim_id=${id}`),
       api.get('/upload/templates'),
-    ]).then(([c, inv, t]) => {
+      api.get('/invoice-field-templates'),
+    ]).then(([c, inv, t, ft]) => {
       setClaim(c.data);
       setInvoices(inv.data);
       setTemplates(t.data);
       if (t.data[0]) setSelectedTemplate(t.data[0].id);
+      setFieldTemplates(ft.data);
+      const def = ft.data.find((x) => x.is_default);
+      if (def) setSelectedFieldTemplate(def.id);
     }).finally(() => setLoading(false));
   }, [id]);
 
   const handleCreateInvoice = async () => {
     setCreating(true);
     try {
-      const res = await api.post('/invoices', { claim_id: id, template_id: selectedTemplate || undefined });
+      const res = await api.post('/invoices', {
+        claim_id: id, template_id: selectedTemplate || undefined,
+        field_template_id: selectedFieldTemplate || undefined,
+      });
       setInvoices([res.data, ...invoices]);
       toast.success('Invoice created');
     } catch (err) {
@@ -71,6 +85,16 @@ export default function ClaimDetailPage() {
               {templates.length > 0 && (
                 <select value={selectedTemplate} onChange={(e) => setSelectedTemplate(e.target.value)} style={{ fontSize: '0.85rem', padding: '0.35rem', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
                   {templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                </select>
+              )}
+              {fieldTemplates.length > 1 && (
+                <select
+                  value={selectedFieldTemplate}
+                  onChange={(e) => setSelectedFieldTemplate(e.target.value)}
+                  aria-label="Invoice template"
+                  style={{ fontSize: '0.85rem', padding: '0.35rem', borderRadius: '6px', border: '1px solid #e2e8f0' }}
+                >
+                  {fieldTemplates.map((t) => <option key={t.id} value={t.id}>{t.name}{t.is_default ? ' (default)' : ''}</option>)}
                 </select>
               )}
               <button className="btn btn-primary" onClick={handleCreateInvoice} disabled={creating}>

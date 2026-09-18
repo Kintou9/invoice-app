@@ -19,6 +19,8 @@ import InvoicesPage from './pages/InvoicesPage';
 import InvoiceDetailPage from './pages/InvoiceDetailPage';
 import ManagerFolderPage from './pages/ManagerFolderPage';
 import UsersPage from './pages/UsersPage';
+import OnboardingPage from './pages/OnboardingPage';
+import InvoiceTemplatesSettingsPage from './pages/InvoiceTemplatesSettingsPage';
 
 function App() {
   return (
@@ -85,6 +87,22 @@ function App() {
             element={
               <ProtectedRoute roles={['owner']}>
                 <AppLayout><UsersPage /></AppLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/onboarding"
+            element={
+              <ProtectedRoute skipOnboardingRedirect>
+                <OnboardingPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/settings/invoice-templates"
+            element={
+              <ProtectedRoute roles={['owner']}>
+                <AppLayout><InvoiceTemplatesSettingsPage /></AppLayout>
               </ProtectedRoute>
             }
           />
