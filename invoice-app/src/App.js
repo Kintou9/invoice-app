@@ -27,6 +27,8 @@ import MapYourFormPage from './pages/MapYourFormPage';
 import TestAndActivatePage from './pages/TestAndActivatePage';
 import MyDocumentsPage from './pages/MyDocumentsPage';
 import ProfilePage from './pages/ProfilePage';
+import SuppliersComingSoonPage from './pages/SuppliersComingSoonPage';
+import { SUPPLIERS_ENABLED } from './config/featureFlags';
 
 function App() {
   return (
@@ -86,6 +88,19 @@ function App() {
             element={
               <ProtectedRoute roles={['owner', 'manager']}>
                 <AppLayout><ManagerFolderPage /></AppLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/suppliers"
+            element={
+              <ProtectedRoute roles={['owner']}>
+                {/* Route-level gate, independent of whether the sidebar
+                    link is visible — direct navigation to /suppliers is
+                    blocked the same way. Swap in a real SuppliersPage here
+                    once the feature ships; until then this is the only
+                    thing this route can ever render. */}
+                <AppLayout>{SUPPLIERS_ENABLED ? <Navigate to="/dashboard" replace /> : <SuppliersComingSoonPage />}</AppLayout>
               </ProtectedRoute>
             }
           />
