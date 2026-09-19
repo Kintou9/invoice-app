@@ -2,6 +2,7 @@ const express = require('express');
 const db = require('../db');
 const authenticate = require('../middleware/authenticate');
 const authorize = require('../middleware/authorize');
+const { generateSasUrl } = require('../services/azureBlob');
 
 const router = express.Router();
 
@@ -29,7 +30,7 @@ router.get('/', authenticate, authorize('owner', 'manager'), async (req, res, ne
     params.push(limit, offset);
 
     const { rows } = await db.query(
-      `SELECT al.*, u.name AS performed_by_name
+      `SELECT al.*, u.name AS performed_by_name, u.avatar_thumb_blob_url AS performed_by_avatar_blob_url
        FROM audit_log al
        LEFT JOIN organization_members om ON al.performed_by = om.id
        LEFT JOIN users u ON om.user_id = u.id
@@ -39,7 +40,11 @@ router.get('/', authenticate, authorize('owner', 'manager'), async (req, res, ne
       params
     );
 
-    res.json(rows);
+    res.json(rows.map((row) => {
+      row.performed_by_avatar_url = row.performed_by_avatar_blob_url ? generateSasUrl(row.performed_by_avatar_blob_url, 60) : null;
+      delete row.performed_by_avatar_blob_url;
+      return row;
+    }));
   } catch (err) {
     next(err);
   }

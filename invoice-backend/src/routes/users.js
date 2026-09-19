@@ -7,6 +7,7 @@ const authenticate = require('../middleware/authenticate');
 const authorize = require('../middleware/authorize');
 const { sendInviteEmail } = require('../services/email');
 const { logAction } = require('../services/auditLog');
+const { deleteBlob, generateSasUrl } = require('../services/azureBlob');
 const { hashToken } = require('../utils/tokenHash');
 
 const INVITE_EXPIRY_DAYS_ALLOWED = [7, 14, 30];
@@ -44,7 +45,7 @@ router.get('/', authenticate, authorize('owner', 'manager'), async (req, res, ne
   try {
     const { rows: members } = await db.query(
       `SELECT u.id, CASE WHEN om.status = 'invited' AND u.name = u.email THEN NULL ELSE u.name END AS name,
-              u.email, om.id AS membership_id, om.role, om.status, om.joined_at, om.last_active_at,
+              u.email, u.avatar_thumb_blob_url, om.id AS membership_id, om.role, om.status, om.joined_at, om.last_active_at,
               om.invite_expires_at, u.created_at
        FROM organization_members om
        JOIN users u ON u.id = om.user_id
@@ -80,6 +81,8 @@ router.get('/', authenticate, authorize('owner', 'manager'), async (req, res, ne
     const orgStats = orgStatsRows[0];
 
     const withWorkload = members.map((m) => {
+      m.avatar_url = m.avatar_thumb_blob_url ? generateSasUrl(m.avatar_thumb_blob_url, 60) : null;
+      delete m.avatar_thumb_blob_url;
       if (m.role === 'worker') {
         const w = workloadByMembership[m.membership_id];
         return {
@@ -436,6 +439,45 @@ router.post('/:id/transfer-ownership', authenticate, authorize('owner'), async (
     });
 
     res.json({ message: 'Ownership transferred' });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// DELETE /api/users/:id/avatar — moderation-only path for an Owner to
+// remove another member's photo (e.g. inappropriate content). Deliberately
+// separate from the self-service DELETE /api/me/avatar: different
+// authorization (owner-only, not "any authenticated user removing their
+// own"), different audit action, and tenant-scoped via the same
+// getTargetMembership lookup every other member-management route uses.
+router.delete('/:id/avatar', authenticate, authorize('owner'), async (req, res, next) => {
+  try {
+    const target = await getTargetMembership(req.params.id, req.user.organizationId);
+    if (!target) return res.status(404).json({ error: 'Member not found in this organization' });
+
+    const { rows } = await db.query(
+      'SELECT avatar_blob_url, avatar_thumb_blob_url FROM users WHERE id = $1',
+      [req.params.id]
+    );
+    if (!rows[0]?.avatar_blob_url) return res.status(404).json({ error: 'This member has no photo to remove' });
+
+    await db.query(
+      'UPDATE users SET avatar_blob_url = NULL, avatar_thumb_blob_url = NULL, updated_at = NOW() WHERE id = $1',
+      [req.params.id]
+    );
+
+    deleteBlob(rows[0].avatar_blob_url).catch(() => {});
+    if (rows[0].avatar_thumb_blob_url) deleteBlob(rows[0].avatar_thumb_blob_url).catch(() => {});
+
+    await logAction({
+      organizationId: req.user.organizationId,
+      entityType: 'user',
+      entityId: req.params.id,
+      action: 'moderate_remove_avatar',
+      performedBy: req.user.membershipId,
+    });
+
+    res.json({ message: 'Photo removed' });
   } catch (err) {
     next(err);
   }

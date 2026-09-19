@@ -3,6 +3,7 @@ import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
+import Avatar from '../components/shared/Avatar';
 import { eventLabel, eventDetails } from '../utils/activityLabels';
 import { getWorkStatus, WORK_STATUS } from '../utils/workStatus';
 import {
@@ -18,12 +19,6 @@ const EMPTY_FORM = {
 };
 
 const ROWS_PER_PAGE = 25;
-
-function initials(name) {
-  if (!name) return '?';
-  const parts = name.trim().split(/\s+/);
-  return ((parts[0]?.[0] || '') + (parts[1]?.[0] || '')).toUpperCase();
-}
 
 const TABS = [
   { key: 'all', label: 'All jobs' },
@@ -573,7 +568,7 @@ export default function ClaimsPage() {
                             ) : (
                               <button type="button" className="jobs-assignee" onClick={() => setReassigningId(c.id)}>
                                 {c.assigned_to_name ? (
-                                  <span className="jobs-avatar">{initials(c.assigned_to_name)}</span>
+                                  <Avatar src={c.assigned_to_avatar_url} name={c.assigned_to_name} size="xs" className="jobs-avatar" />
                                 ) : (
                                   <span className="jobs-avatar jobs-avatar-empty"><User size={13} /></span>
                                 )}
@@ -631,7 +626,7 @@ export default function ClaimsPage() {
                 <div className="jobs-activity-list">
                   {activity.map((entry) => (
                     <div key={entry.id} className="jobs-activity-row">
-                      <span className="jobs-avatar">{initials(entry.performed_by_name)}</span>
+                      <Avatar src={entry.performed_by_avatar_url} name={entry.performed_by_name} size="xs" className="jobs-avatar" />
                       <span className="jobs-activity-text">
                         <strong>{entry.performed_by_name || 'Someone'}</strong> {eventLabel(entry).toLowerCase()}
                         {eventDetails(entry) && <span className="jobs-activity-detail"> — {eventDetails(entry)}</span>}

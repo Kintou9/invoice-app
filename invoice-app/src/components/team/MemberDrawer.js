@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { X, ArrowLeft, ExternalLink, ShieldAlert, PauseCircle, PlayCircle, UserMinus } from 'lucide-react';
 import api from '../../services/api';
+import Avatar from '../shared/Avatar';
 import { eventLabel, eventDetails } from '../../utils/activityLabels';
 import { formatWorkload } from '../../utils/teamWorkload';
 import { ROLE_PERMISSIONS, ASSIGNABLE_ROLES } from '../../utils/rolePermissions';
@@ -90,7 +91,7 @@ export default function MemberDrawer({ member, claims, currentUser, onClose, onC
       <div className="team-drawer-header">
         <button className="team-drawer-back" onClick={onClose}><ArrowLeft size={16} /> Back</button>
         <div className="team-drawer-identity">
-          <span className="team-avatar">{(member.name || member.email)[0].toUpperCase()}</span>
+          <Avatar src={member.avatar_url} name={member.name || member.email} size="lg" className="team-avatar" />
           <div>
             <strong>{member.name || 'Pending'}</strong>
             <span className={`team-status-dot team-status-${member.status}`} />

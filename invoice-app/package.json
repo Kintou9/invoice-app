@@ -12,6 +12,7 @@
     "pdfjs-dist": "^3.11.174",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
+    "react-easy-crop": "^6.2.3",
     "react-router-dom": "^6.30.6",
     "react-scripts": "5.0.1",
     "react-toastify": "^11.1.0",

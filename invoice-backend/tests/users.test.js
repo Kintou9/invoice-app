@@ -1,5 +1,6 @@
 const app = require('../src/app');
 const db = require('../src/db');
+const azureBlob = require('../src/services/azureBlob');
 const { signTestToken, request } = require('./helpers');
 
 const ownerToken = signTestToken({ role: 'owner', organizationId: 'org-1', membershipId: 'member-owner', id: 'user-owner' });
@@ -332,6 +333,50 @@ describe('tenant isolation', () => {
     db.query.mockResolvedValueOnce({ rows: [] }); // getTargetMembership finds nothing scoped to org-2
 
     const res = await request(app, { method: 'POST', url: '/api/users/user-target/suspend', token: otherOrgOwnerToken });
+
+    expect(res.status).toBe(404);
+  });
+});
+
+// DELETE /api/users/:id/avatar — the moderation-only path for an Owner to
+// remove another member's photo. Deliberately separate authorization and
+// audit action from the self-service DELETE /api/me/avatar (see tests/me.test.js).
+describe('DELETE /api/users/:id/avatar — moderation', () => {
+  test('an owner can remove another member\'s photo', async () => {
+    db.query
+      .mockResolvedValueOnce({ rows: [{ membership_id: 'mem-target', role: 'worker', status: 'active' }] }) // getTargetMembership
+      .mockResolvedValueOnce({ rows: [{ avatar_blob_url: 'https://blob/avatars/user-target/a.jpg', avatar_thumb_blob_url: 'https://blob/avatars/user-target/b.jpg' }] })
+      .mockResolvedValueOnce({ rowCount: 1 }) // UPDATE users
+      .mockResolvedValueOnce({ rows: [] }); // logAction
+    azureBlob.deleteBlob.mockResolvedValue(undefined);
+
+    const res = await request(app, { method: 'DELETE', url: '/api/users/user-target/avatar', token: ownerToken });
+
+    expect(res.status).toBe(200);
+    expect(azureBlob.deleteBlob).toHaveBeenCalledTimes(2);
+  });
+
+  test('a manager cannot use the moderation endpoint (owner-only)', async () => {
+    const res = await request(app, { method: 'DELETE', url: '/api/users/user-target/avatar', token: managerToken });
+
+    expect(res.status).toBe(403);
+    expect(db.query).not.toHaveBeenCalled();
+  });
+
+  test('404s for a member outside the caller\'s own org', async () => {
+    db.query.mockResolvedValueOnce({ rows: [] }); // getTargetMembership finds nothing
+
+    const res = await request(app, { method: 'DELETE', url: '/api/users/user-target/avatar', token: ownerToken });
+
+    expect(res.status).toBe(404);
+  });
+
+  test('404s when the target member has no photo to remove', async () => {
+    db.query
+      .mockResolvedValueOnce({ rows: [{ membership_id: 'mem-target', role: 'worker', status: 'active' }] })
+      .mockResolvedValueOnce({ rows: [{ avatar_blob_url: null, avatar_thumb_blob_url: null }] });
+
+    const res = await request(app, { method: 'DELETE', url: '/api/users/user-target/avatar', token: ownerToken });
 
     expect(res.status).toBe(404);
   });

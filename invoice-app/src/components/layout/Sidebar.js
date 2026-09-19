@@ -2,9 +2,10 @@ import { useEffect, useRef, useState } from 'react';
 import { NavLink, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
+import Avatar from '../shared/Avatar';
 import {
   LayoutDashboard, ClipboardList, FileText, Users, Folder, Store, Palette, Files,
-  Building2, ChevronDown, ChevronsLeft, ChevronsRight, Check, LogOut,
+  Building2, ChevronDown, ChevronsLeft, ChevronsRight, Check, LogOut, UserCircle,
 } from 'lucide-react';
 import './Sidebar.css';
 
@@ -38,12 +39,6 @@ const navItems = {
     { to: '/invoices', icon: FileText, label: 'Invoices' },
   ],
 };
-
-function initials(name) {
-  if (!name) return '?';
-  const parts = name.trim().split(/\s+/);
-  return ((parts[0]?.[0] || '') + (parts[1]?.[0] || '')).toUpperCase();
-}
 
 export default function Sidebar({ mobileOpen, onCloseMobile }) {
   const { user, logout, switchOrganization } = useAuth();
@@ -173,6 +168,17 @@ export default function Sidebar({ mobileOpen, onCloseMobile }) {
       <div className="sidebar-user" ref={userMenuRef}>
         {userMenuOpen && !collapsed && (
           <div className="sidebar-dropdown sidebar-user-dropdown">
+            <button className="sidebar-dropdown-item" onClick={() => { setUserMenuOpen(false); navigate('/profile'); }}>
+              <UserCircle size={15} /> My Profile
+            </button>
+            {organizations.length > 1 && (
+              <button
+                className="sidebar-dropdown-item"
+                onClick={() => { setUserMenuOpen(false); setOrgOpen(true); }}
+              >
+                <Building2 size={15} /> Switch Workspace
+              </button>
+            )}
             <button className="sidebar-dropdown-item" onClick={handleLogout}>
               <LogOut size={15} /> Sign out
             </button>
@@ -182,8 +188,10 @@ export default function Sidebar({ mobileOpen, onCloseMobile }) {
           className="sidebar-user-btn"
           onClick={() => { if (collapsed) { setCollapsed(false); } else { setUserMenuOpen((o) => !o); } }}
           title={user?.name}
+          aria-expanded={userMenuOpen}
+          aria-haspopup="menu"
         >
-          <span className="sidebar-avatar">{initials(user?.name)}</span>
+          <Avatar src={user?.avatarUrl} name={user?.name} size="sm" variant="solid" className="sidebar-avatar" />
           <span className="sidebar-user-info">
             <span className="sidebar-user-name">{user?.name}</span>
             <span className="sidebar-user-role">{user?.role}</span>
