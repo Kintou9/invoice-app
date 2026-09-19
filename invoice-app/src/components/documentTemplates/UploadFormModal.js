@@ -1,11 +1,8 @@
 import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { GlobalWorkerOptions, getDocument } from 'pdfjs-dist';
 import { UploadCloud, FileText } from 'lucide-react';
 import api from '../../services/api';
-
-GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.js', import.meta.url).toString();
 
 const MAX_SIZE = 15 * 1024 * 1024;
 const ALLOWED_TYPES = ['application/pdf', 'image/png', 'image/jpeg'];
@@ -29,6 +26,7 @@ function loadImageDimensions(blob) {
 // pdfjs-dist. A photo/PNG/JPG upload skips this entirely (it's already an
 // image) and is used directly as page 1.
 async function renderPdfFirstPageToPng(file) {
+  const { getDocument } = await import('../../utils/pdfjsWorker');
   const buffer = await file.arrayBuffer();
   const pdf = await getDocument({ data: buffer }).promise;
   const page = await pdf.getPage(1);
