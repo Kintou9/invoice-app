@@ -1,4 +1,4 @@
-.team-page { max-width: 1400px; }
+.team-page { width: 100%; max-width: 1400px; margin: 0 auto; }
 
 .team-header {
   display: flex;

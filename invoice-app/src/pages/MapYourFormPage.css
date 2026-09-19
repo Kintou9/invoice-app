@@ -1,4 +1,4 @@
-.mf-page { max-width: 1500px; }
+.mf-page { width: 100%; max-width: 1500px; margin: 0 auto; }
 .mf-breadcrumb { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.5rem; }
 .mf-breadcrumb a { color: var(--text-muted); text-decoration: none; }
 .mf-breadcrumb a:hover { text-decoration: underline; }

@@ -1,4 +1,4 @@
-.job-detail { max-width: 1200px; }
+.job-detail { width: 100%; max-width: 1200px; margin: 0 auto; }
 
 .job-breadcrumb {
   font-size: 0.85rem;

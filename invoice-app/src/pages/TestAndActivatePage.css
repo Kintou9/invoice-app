@@ -1,4 +1,4 @@
-.ta-page { max-width: 1400px; }
+.ta-page { width: 100%; max-width: 1400px; margin: 0 auto; }
 .ta-breadcrumb { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.5rem; }
 .ta-breadcrumb a { color: var(--text-muted); text-decoration: none; }
 .ta-breadcrumb a:hover { text-decoration: underline; }

@@ -92,29 +92,31 @@ export default function LineItemsSection({ invoiceId, lineItems, taxRate, servic
     <section className="card">
       <h2>Line Items</h2>
       {(lineItems || []).length > 0 && (
-        <table className="claims-table" style={{ marginBottom: '0.75rem' }}>
-          <thead>
-            <tr><th>Description</th><th>Qty</th><th>Unit</th><th>Unit Price</th><th>Total</th>{isEditable && <th></th>}</tr>
-          </thead>
-          <tbody>
-            {lineItems.map((li) => (
-              <tr key={li.id}>
-                <td>{li.description}</td>
-                <td>{li.quantity}</td>
-                <td>{li.unit || '—'}</td>
-                <td>${Number(li.unit_price).toFixed(2)}</td>
-                <td>${Number(li.total_price).toFixed(2)}</td>
-                {isEditable && (
-                  <td>
-                    <button type="button" className="btn btn-secondary btn-sm" onClick={() => handleDelete(li.id)} aria-label={`Remove ${li.description}`}>
-                      <Trash2 size={14} />
-                    </button>
-                  </td>
-                )}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div className="claims-table-wrap" style={{ marginBottom: '0.75rem' }}>
+          <table className="claims-table">
+            <thead>
+              <tr><th>Description</th><th>Qty</th><th>Unit</th><th>Unit Price</th><th>Total</th>{isEditable && <th></th>}</tr>
+            </thead>
+            <tbody>
+              {lineItems.map((li) => (
+                <tr key={li.id}>
+                  <td>{li.description}</td>
+                  <td>{li.quantity}</td>
+                  <td>{li.unit || '—'}</td>
+                  <td>${Number(li.unit_price).toFixed(2)}</td>
+                  <td>${Number(li.total_price).toFixed(2)}</td>
+                  {isEditable && (
+                    <td>
+                      <button type="button" className="btn btn-secondary btn-sm" onClick={() => handleDelete(li.id)} aria-label={`Remove ${li.description}`}>
+                        <Trash2 size={14} />
+                      </button>
+                    </td>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
 
       {isEditable && (
