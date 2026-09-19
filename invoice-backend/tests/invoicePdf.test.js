@@ -86,6 +86,30 @@ describe('generateInvoicePdf', () => {
     expect(text).toContain('165.00');
   });
 
+  test('renders the service call fee for a qualifying industry (electrical)', async () => {
+    const invoiceWithFee = { ...invoice, service_call_fee: '75.00', payment_method: 'card' };
+    const electricalSnapshot = { ...snapshot, industry_key: 'electrical' };
+    const buffer = await generateInvoicePdf({ invoice: invoiceWithFee, claim, lineItems, snapshot: electricalSnapshot, fieldValues: {} });
+    const text = extractDecodedText(buffer);
+    expect(text).toContain('Service call fee');
+    expect(text).toContain('75.00');
+    expect(text).toContain('Paid by');
+    // subtotal 150 + 10% tax (15) + 75 fee = 240.00
+    expect(text).toContain('240.00');
+  });
+
+  test('never renders a service call fee for a non-qualifying industry (flooring)', async () => {
+    const invoiceWithFee = { ...invoice, service_call_fee: '75.00', payment_method: 'card' };
+    const flooringSnapshot = { ...snapshot, industry_key: 'flooring' };
+    const buffer = await generateInvoicePdf({ invoice: invoiceWithFee, claim, lineItems, snapshot: flooringSnapshot, fieldValues: {} });
+    const text = extractDecodedText(buffer);
+    expect(text).not.toContain('Service call fee');
+    expect(text).not.toContain('Paid by');
+    // the fee must not be silently folded into the total either: 150 + 10% tax = 165.00, not 240.00
+    expect(text).toContain('165.00');
+    expect(text).not.toContain('240.00');
+  });
+
   test('gracefully skips a logo that fails to embed rather than failing the whole PDF', async () => {
     const snapshotWithBadLogo = { ...snapshot, logo_blob_url: 'https://storage.example/private/logos/does-not-exist.png' };
     // azureBlob.downloadBuffer is globally mocked (tests/setup.js) to throw

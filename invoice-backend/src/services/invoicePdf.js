@@ -1,5 +1,6 @@
 const { PDFDocument, StandardFonts, rgb } = require('pdf-lib');
 const { downloadBuffer } = require('./azureBlob');
+const { allowsServiceCallFee } = require('../utils/industryTemplates');
 
 const PAGE_WIDTH = 612; // US Letter, points
 const PAGE_HEIGHT = 792;
@@ -121,12 +122,22 @@ async function generateInvoicePdf({ invoice, claim, lineItems, snapshot, fieldVa
 
   const taxRate = Number(invoice.tax_rate) || 0;
   const tax = subtotal * (taxRate / 100);
-  const total = subtotal + tax;
+  // A service call / dispatch fee only applies to trades that send a
+  // technician to the customer's home or shop (appliance, electrical,
+  // plumbing, HVAC, auto repair) — never drawn or added to the total
+  // outside those industries, even if a stale value exists on the row.
+  const serviceCallFee = allowsServiceCallFee(snapshot?.industry_key) ? (Number(invoice.service_call_fee) || 0) : 0;
+  const total = subtotal + tax + serviceCallFee;
 
   y -= 8;
   drawLine(`Subtotal: $${subtotal.toFixed(2)}`, { size: 10, x: MARGIN + 320 });
   if (taxRate > 0) drawLine(`Tax (${taxRate}%): $${tax.toFixed(2)}`, { size: 10, x: MARGIN + 320 });
+  if (serviceCallFee > 0) drawLine(`Service call fee: $${serviceCallFee.toFixed(2)}`, { size: 10, x: MARGIN + 320 });
   drawLine(`Total: $${total.toFixed(2)}`, { size: 12, f: bold, x: MARGIN + 320 });
+  if (serviceCallFee > 0 && invoice.payment_method) {
+    const label = invoice.payment_method.charAt(0).toUpperCase() + invoice.payment_method.slice(1);
+    drawLine(`Paid by: ${label}`, { size: 10, x: MARGIN + 320 });
+  }
 
   if (snapshot?.payment_terms) {
     y -= 10;

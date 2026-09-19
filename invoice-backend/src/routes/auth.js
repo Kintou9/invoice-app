@@ -55,6 +55,19 @@ function signToken(user, membership) {
   );
 }
 
+// Stamps "Last active" for the Team page — called wherever a fresh JWT is
+// actually issued (login, register, accept-invite, switch-organization),
+// which is a real, honest activity signal even though it's session-level
+// rather than per-request. Best-effort: never blocks the auth flow it's
+// attached to.
+async function touchLastActive(membershipId) {
+  try {
+    await db.query('UPDATE organization_members SET last_active_at = NOW() WHERE id = $1', [membershipId]);
+  } catch (err) {
+    console.error('Failed to update last_active_at:', err.message);
+  }
+}
+
 function toUserResponse(user, membership) {
   return {
     id: user.id,
@@ -132,6 +145,7 @@ router.post('/register', async (req, res, next) => {
     });
 
     const token = signToken(user, membership);
+    await touchLastActive(membership.membership_id);
     res.status(201).json({ token, user: toUserResponse(user, membership) });
   } catch (err) {
     await client.query('ROLLBACK');
@@ -171,6 +185,7 @@ router.post('/login', async (req, res, next) => {
     }
 
     const token = signToken(user, membership);
+    await touchLastActive(membership.membership_id);
     res.json({ token, user: toUserResponse(user, membership) });
   } catch (err) {
     next(err);
@@ -237,6 +252,7 @@ router.post('/switch-organization', authenticate, async (req, res, next) => {
     }
 
     const token = signToken(req.user, membership);
+    await touchLastActive(membership.membership_id);
     res.json({ token, user: toUserResponse(req.user, membership) });
   } catch (err) {
     next(err);
@@ -338,6 +354,7 @@ router.post('/accept-invite', async (req, res, next) => {
     };
 
     const jwtToken = signToken(user, membership);
+    await touchLastActive(membership.membership_id);
     res.json({ token: jwtToken, user: toUserResponse(user, membership) });
   } catch (err) {
     next(err);
@@ -432,6 +449,7 @@ router.post('/reset-password', async (req, res, next) => {
     });
 
     const jwtToken = signToken(user, membership);
+    await touchLastActive(membership.membership_id);
     res.json({ token: jwtToken, user: toUserResponse(user, membership) });
   } catch (err) {
     next(err);

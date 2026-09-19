@@ -184,4 +184,48 @@ If you cannot find a value, use null for that field.`,
   }
 }
 
-module.exports = { extractEquipmentInfo, generateIssueDescription, suggestParts, extractClaimInfo };
+/**
+ * Reads an uploaded document image (a photographed/scanned form, or a PDF
+ * page already rasterized to an image by the caller) and suggests candidate
+ * fields — a label, the value actually printed on the document, and a
+ * self-reported confidence. This is the real, honest boundary of what
+ * vision-model detection can do here: it does NOT return pixel coordinates
+ * (a vision-language model isn't reliable at that), so every suggestion
+ * comes back unplaced — the caller/UI is responsible for letting the owner
+ * drag each one onto the right spot on the still-visible document.
+ */
+async function detectDocumentFields(imageBase64, mediaType = 'image/jpeg') {
+  const response = await getClient().messages.create({
+    model: 'claude-sonnet-4-6',
+    max_tokens: 1536,
+    messages: [
+      {
+        role: 'user',
+        content: [
+          { type: 'image', source: { type: 'base64', media_type: mediaType, data: imageBase64 } },
+          {
+            type: 'text',
+            text: `You are helping digitize a business's own paper or PDF invoice/claim form so it can be auto-filled in the future. Look at this document and list every distinct fillable field you can find — labeled blanks, boxes, table columns, signature lines, printed values next to a label, etc.
+
+For each field, report the label as printed (or your best short name for it if unlabeled), the actual value already filled in on this specific document if any (or null if blank), whether it looks like a repeating table column (parts/labor line items) vs a single text field vs a signature line vs a photo/attachment area, and your confidence that you identified it correctly.
+
+Respond ONLY with valid JSON, no other text, in this exact shape:
+{"fields": [{"label": "...", "value": "...", "field_type": "text|table|signature|photo", "confidence": "high|medium|low"}], "overall_confidence": "high|medium|low"}
+
+Do not invent fields that aren't visibly present on the document. Order fields the way a person reading top-to-bottom, left-to-right would encounter them.`,
+          },
+        ],
+      },
+    ],
+  });
+
+  const raw = response.content[0].text.trim().replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
+  try {
+    const parsed = JSON.parse(raw);
+    return { fields: parsed.fields || [], overall_confidence: parsed.overall_confidence || 'low' };
+  } catch {
+    return { fields: [], overall_confidence: 'low' };
+  }
+}
+
+module.exports = { extractEquipmentInfo, generateIssueDescription, suggestParts, extractClaimInfo, detectDocumentFields };

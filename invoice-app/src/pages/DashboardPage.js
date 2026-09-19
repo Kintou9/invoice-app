@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
+import { eventLabel, eventDetails } from '../utils/activityLabels';
 import {
   ClipboardList, FileText, CheckCircle, Clock, ChevronLeft, ChevronRight, X, Plus,
   AlertCircle, Camera, Edit3, MapPin, Wrench, AlertTriangle, ArrowRight,
@@ -163,25 +164,6 @@ function CalendarModal({ claims, onClose, isManager }) {
   );
 }
 
-// Human-readable label for a (entity_type, action) pair from the audit log.
-const EVENT_LABELS = {
-  claim: { create: 'Claim created', edit: 'Claim updated', delete: 'Claim deleted' },
-  invoice: { create: 'Invoice started', submit: 'Invoice submitted', approve: 'Invoice approved', reject: 'Invoice rejected', edit: 'Invoice updated' },
-  invoice_field_template: { create: 'Template created', edit: 'Template updated', archive: 'Template archived', onboarding_complete: 'Onboarding completed' },
-  organization_member: { accept_invite: 'Invite accepted', invite: 'Member invited', edit: 'Member updated' },
-  part_purchase: { create: 'Part ordered', edit: 'Part purchase updated', delete: 'Part purchase removed', add_to_invoice: 'Part billed to invoice' },
-};
-
-function eventLabel(entry) {
-  return EVENT_LABELS[entry.entity_type]?.[entry.action] || `${entry.entity_type} ${entry.action}`.replace('_', ' ');
-}
-
-// Best-effort pull of a couple of well-known metadata keys — shapes vary
-// per action, there's no per-entity display-name join on this endpoint.
-function eventDetails(entry) {
-  const m = entry.metadata || {};
-  return [m.claim_number, m.customer_name, m.name, m.organization_name].filter(Boolean).join(' — ');
-}
 
 // ── Main Dashboard ──────────────────────────────────────────────────────────
 export default function DashboardPage() {
@@ -449,7 +431,7 @@ export default function DashboardPage() {
           <p className="dashboard-subtitle">{today.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
         </div>
         <div className="dashboard-top-actions">
-          <Link to="/claims?new=1&mode=manual" className="btn btn-primary"><Plus size={16} /> New claim</Link>
+          <Link to="/claims?new=1&mode=manual" className="btn btn-primary"><Plus size={16} /> New job</Link>
           <Link to="/claims" className="btn btn-secondary"><Plus size={16} /> New invoice</Link>
         </div>
       </div>
@@ -468,7 +450,7 @@ export default function DashboardPage() {
               <div className="queue-table-wrap">
                 <table className="queue-table">
                   <thead>
-                    <tr><th>Customer</th><th>Claim #</th><th>Service date</th><th>Amount</th><th>Assignee</th><th></th></tr>
+                    <tr><th>Customer</th><th>Job #</th><th>Service date</th><th>Amount</th><th>Assignee</th><th></th></tr>
                   </thead>
                   <tbody>
                     {needsApprovalInvoices.slice(0, 5).map((inv) => (
@@ -493,7 +475,7 @@ export default function DashboardPage() {
               <div className="queue-table-wrap">
                 <table className="queue-table">
                   <thead>
-                    <tr><th>Customer</th><th>Claim #</th><th>Service date</th><th>Amount</th><th>Assignee</th><th></th></tr>
+                    <tr><th>Customer</th><th>Job #</th><th>Service date</th><th>Amount</th><th>Assignee</th><th></th></tr>
                   </thead>
                   <tbody>
                     {unassignedClaims.slice(0, 5).map((c) => (

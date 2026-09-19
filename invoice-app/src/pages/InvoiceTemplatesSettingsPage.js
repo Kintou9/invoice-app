@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import api from '../services/api';
 import TemplateEditorForm from '../components/templates/TemplateEditorForm';
@@ -12,11 +13,20 @@ export default function InvoiceTemplatesSettingsPage() {
   const [editingId, setEditingId] = useState(null);
   const [draft, setDraft] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [searchParams] = useSearchParams();
 
   const load = () =>
     api.get('/invoice-field-templates?include_archived=true').then((r) => setTemplates(r.data)).finally(() => setLoading(false));
 
   useEffect(() => { load(); }, []);
+
+  // The Document Templates library's "Start from scratch" card links here
+  // with ?new=1 — same auto-open-on-arrival pattern already used by
+  // ClaimsPage's own quick-create tiles.
+  useEffect(() => {
+    if (searchParams.get('new') === '1') handleNew();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const startEdit = (template) => {
     setEditingId(template.id);

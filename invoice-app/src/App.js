@@ -19,9 +19,12 @@ import ClaimDetailPage from './pages/ClaimDetailPage';
 import InvoicesPage from './pages/InvoicesPage';
 import InvoiceDetailPage from './pages/InvoiceDetailPage';
 import ManagerFolderPage from './pages/ManagerFolderPage';
-import UsersPage from './pages/UsersPage';
+import TeamPage from './pages/TeamPage';
 import OnboardingPage from './pages/OnboardingPage';
 import InvoiceTemplatesSettingsPage from './pages/InvoiceTemplatesSettingsPage';
+import DocumentTemplatesPage from './pages/DocumentTemplatesPage';
+import MapYourFormPage from './pages/MapYourFormPage';
+import TestAndActivatePage from './pages/TestAndActivatePage';
 import MyDocumentsPage from './pages/MyDocumentsPage';
 
 function App() {
@@ -86,13 +89,14 @@ function App() {
             }
           />
           <Route
-            path="/users"
+            path="/team"
             element={
-              <ProtectedRoute roles={['owner']}>
-                <AppLayout><UsersPage /></AppLayout>
+              <ProtectedRoute roles={['owner', 'manager']}>
+                <AppLayout><TeamPage /></AppLayout>
               </ProtectedRoute>
             }
           />
+          <Route path="/users" element={<Navigate to="/team" replace />} />
           <Route
             path="/onboarding"
             element={
@@ -114,6 +118,30 @@ function App() {
             element={
               <ProtectedRoute roles={['owner']}>
                 <AppLayout><InvoiceTemplatesSettingsPage /></AppLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/settings/document-templates"
+            element={
+              <ProtectedRoute roles={['owner', 'manager']}>
+                <AppLayout><DocumentTemplatesPage /></AppLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/settings/document-templates/:id/map/:versionId"
+            element={
+              <ProtectedRoute roles={['owner', 'manager']}>
+                <AppLayout><MapYourFormPage /></AppLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/settings/document-templates/:id/test/:versionId"
+            element={
+              <ProtectedRoute roles={['owner', 'manager']}>
+                <AppLayout><TestAndActivatePage /></AppLayout>
               </ProtectedRoute>
             }
           />

@@ -96,4 +96,15 @@ const INDUSTRY_TEMPLATES = {
   },
 };
 
-module.exports = { INDUSTRY_TEMPLATES };
+// Trades where a flat "service call" / dispatch fee is a standard, expected
+// line item — a technician travels to the customer's home or shop, often
+// for insurance-adjacent work (a claim, a warranty repair). Project/quote
+// trades (flooring) and the generic fallback don't have that convention, so
+// the fee stays unavailable there rather than showing a stray $0 line.
+const SERVICE_CALL_FEE_INDUSTRIES = new Set(['appliance_repair', 'electrical', 'plumbing', 'hvac', 'auto_repair']);
+
+function allowsServiceCallFee(industryKey) {
+  return SERVICE_CALL_FEE_INDUSTRIES.has(industryKey);
+}
+
+module.exports = { INDUSTRY_TEMPLATES, allowsServiceCallFee };

@@ -4,6 +4,7 @@ const authenticate = require('../middleware/authenticate');
 const authorize = require('../middleware/authorize');
 const { notify } = require('../services/notifications');
 const { logAction } = require('../services/auditLog');
+const { generateSasUrl } = require('../services/azureBlob');
 
 const router = express.Router();
 
@@ -79,7 +80,13 @@ router.get('/:id', authenticate, async (req, res, next) => {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
-    res.json(rows[0]);
+    // claim_photo_url lives in a private Blob container like every other
+    // upload in this app — attach a short-lived SAS URL for on-screen
+    // display, never served as the raw blob_url.
+    const claim = rows[0];
+    const claim_photo_sas_url = claim.claim_photo_url ? generateSasUrl(claim.claim_photo_url, 60) : null;
+
+    res.json({ ...claim, claim_photo_sas_url });
   } catch (err) {
     next(err);
   }
@@ -146,23 +153,48 @@ router.post('/', authenticate, authorize('owner', 'manager'), async (req, res, n
 // distinguish "not sent" (leave alone) from "sent as null" (unassign), which
 // COALESCE can't do — it would silently ignore an explicit null and leave
 // the previous assignment in place.
-router.patch('/:id', authenticate, authorize('owner', 'manager'), async (req, res, next) => {
+router.patch('/:id', authenticate, authorize('owner', 'manager', 'worker'), async (req, res, next) => {
   try {
-    const { title, description, status } = req.body;
+    const { title, description, status, customer_name, customer_phone, job_address } = req.body;
     const hasAssignedTo = Object.prototype.hasOwnProperty.call(req.body, 'assigned_to');
+
+    // A worker may only nudge their own assigned job between open/in_progress
+    // and correct customer details found on site — reassignment, title/
+    // description edits, and every other status transition (pending_approval,
+    // approved, rejected) stay manager/owner-only, driven by the review flow.
+    // Checked before the assigned_to org-membership lookup below since a
+    // worker is never allowed to touch assigned_to at all.
+    if (req.user.role === 'worker') {
+      const workerAllowedStatuses = ['open', 'in_progress'];
+      if (title !== undefined || description !== undefined || hasAssignedTo || (status !== undefined && !workerAllowedStatuses.includes(status))) {
+        return res.status(403).json({ error: 'Forbidden' });
+      }
+      const { rows: ownCheck } = await db.query(
+        'SELECT assigned_to FROM claims WHERE id = $1 AND organization_id = $2',
+        [req.params.id, req.user.organizationId]
+      );
+      if (!ownCheck[0] || ownCheck[0].assigned_to !== req.user.membershipId) {
+        return res.status(403).json({ error: 'Forbidden' });
+      }
+    }
+
     if (hasAssignedTo && req.body.assigned_to && !(await isMemberOfOrg(req.body.assigned_to, req.user.organizationId))) {
       return res.status(400).json({ error: 'assigned_to must be a member of your organization' });
     }
+
     const { rows } = await db.query(
       `UPDATE claims SET
         title = COALESCE($1, title),
         description = COALESCE($2, description),
         assigned_to = CASE WHEN $3 THEN $4 ELSE assigned_to END,
         status = COALESCE($5, status),
+        customer_name = COALESCE($6, customer_name),
+        customer_phone = COALESCE($7, customer_phone),
+        job_address = COALESCE($8, job_address),
         updated_at = NOW()
-       WHERE id = $6 AND organization_id = $7
+       WHERE id = $9 AND organization_id = $10
        RETURNING *`,
-      [title, description, hasAssignedTo, req.body.assigned_to ?? null, status, req.params.id, req.user.organizationId]
+      [title, description, hasAssignedTo, req.body.assigned_to ?? null, status, customer_name, customer_phone, job_address, req.params.id, req.user.organizationId]
     );
     if (!rows[0]) return res.status(404).json({ error: 'Claim not found' });
 

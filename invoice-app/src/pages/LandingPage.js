@@ -93,9 +93,14 @@ export default function LandingPage() {
             <a href="#features" onClick={scrollTo('features')}>Features</a>
             <a href="#how-it-works" onClick={scrollTo('how-it-works')}>Solutions</a>
           </nav>
-          <button className="landing-demo-btn" onClick={() => navigate('/register')}>
-            Book Demo
-          </button>
+          <div className="landing-nav-actions">
+            <button className="landing-signin-btn" onClick={() => navigate('/login')}>
+              Sign In
+            </button>
+            <button className="landing-demo-btn" onClick={() => navigate('/register')}>
+              Book Demo
+            </button>
+          </div>
         </div>
       </header>
 

@@ -6,6 +6,7 @@ import api from '../services/api';
 import PartsSection from '../components/parts/PartsSection';
 import TemplateFieldsSection from '../components/invoices/TemplateFieldsSection';
 import LineItemsSection from '../components/invoices/LineItemsSection';
+import { allowsServiceCallFee } from '../utils/serviceCallFee';
 import { Camera, Sparkles, Send, CheckCircle, XCircle, Upload, User, MapPin, Wrench, FileDown, RefreshCw } from 'lucide-react';
 import './InvoiceDetailPage.css';
 
@@ -461,6 +462,9 @@ export default function InvoiceDetailPage() {
           invoiceId={id}
           lineItems={invoice.line_items || []}
           taxRate={invoice.tax_rate || 0}
+          serviceCallFee={invoice.service_call_fee || 0}
+          paymentMethod={invoice.payment_method}
+          allowServiceCallFee={allowsServiceCallFee(invoice.field_template_snapshot?.industry_key)}
           isEditable={isEditable}
           onUpdate={load}
         />
