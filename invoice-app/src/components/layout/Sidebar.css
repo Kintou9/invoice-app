@@ -271,3 +271,48 @@
   .sidebar { width: 200px; }
   .sidebar-user-name { max-width: 90px; }
 }
+
+/* Below 640px the sidebar becomes an off-canvas drawer instead of a
+   permanent layout column — a fixed-width rail (even collapsed, 72px)
+   eats too much of a phone-sized viewport to stay inline. */
+.sidebar-backdrop { display: none; }
+
+@media (max-width: 640px) {
+  .sidebar,
+  .sidebar.collapsed {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 260px;
+    max-width: 82vw;
+    height: 100vh;
+    z-index: 210;
+    transform: translateX(-100%);
+    transition: transform 0.2s ease;
+  }
+  .sidebar.mobile-open,
+  .sidebar.collapsed.mobile-open {
+    transform: translateX(0);
+  }
+  /* On mobile the drawer always shows full labels, regardless of the
+     desktop collapsed/expanded preference stored in localStorage. */
+  .sidebar.collapsed .sidebar-brand span,
+  .sidebar.collapsed .sidebar-org-name,
+  .sidebar.collapsed .sidebar-org-chevron,
+  .sidebar.collapsed .sidebar-link span,
+  .sidebar.collapsed .sidebar-user-info,
+  .sidebar.collapsed .sidebar-user-chevron {
+    max-width: none;
+    opacity: 1;
+  }
+  .sidebar.collapsed .sidebar-link { justify-content: flex-start; padding: 0.6rem 0.65rem; }
+  .sidebar-collapse-btn { display: none; }
+
+  .sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(11, 18, 32, 0.5);
+    z-index: 200;
+  }
+}

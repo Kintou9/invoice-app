@@ -1,6 +1,7 @@
+.claims-page { width: 100%; max-width: 1400px; margin: 0 auto; }
 .claims-page h1 { font-size: 1.5rem; font-weight: 700; color: var(--text-primary); margin: 0; }
 
-.page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; }
+.page-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 1.5rem; }
 
 .create-form {
   background: var(--surface);
@@ -25,7 +26,7 @@
 }
 .search-bar input { border: none; outline: none; flex: 1; font-size: 0.9rem; color: var(--text-body); }
 
-.claims-filter-bar { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 1rem; }
+.claims-filter-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 0.6rem; margin-bottom: 1rem; }
 .claims-filter-bar select {
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -33,6 +34,8 @@
   font-size: 0.85rem;
   color: var(--text-body);
   background: var(--surface);
+  flex: 1 1 140px;
+  min-width: 0;
 }
 .claims-filter-clear {
   border: none;
@@ -56,7 +59,7 @@
 }
 .reassign-select:disabled { opacity: 0.6; }
 
-.claims-table-wrap { background: var(--surface); border-radius: 10px; border: 1px solid var(--border); overflow: hidden; }
+.claims-table-wrap { background: var(--surface); border-radius: 10px; border: 1px solid var(--border); overflow-x: auto; }
 .claims-table { width: 100%; border-collapse: collapse; }
 .claims-table th { background: var(--surface-alt); padding: 0.75rem 1rem; text-align: left; font-size: 0.8rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
 .claims-table td { padding: 0.8rem 1rem; border-top: 1px solid var(--border-subtle); font-size: 0.9rem; color: var(--text-body); vertical-align: middle; }

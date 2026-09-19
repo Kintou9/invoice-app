@@ -527,18 +527,20 @@ export default function ClaimDetailPage() {
                   ) : lineItems.length === 0 && !serviceCallFee ? <p className="empty-msg">No parts or labor line items yet.</p> : (
                     <>
                       {lineItems.length > 0 && (
-                        <table className="claims-table">
-                          <thead><tr><th>Description</th><th>Qty</th><th>Billable amount</th></tr></thead>
-                          <tbody>
-                            {lineItems.map((li) => (
-                              <tr key={li.id}>
-                                <td>{li.description}</td>
-                                <td>{li.quantity}{li.unit ? ` ${li.unit}` : ''}</td>
-                                <td>${Number(li.total_price).toFixed(2)}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                        <div className="claims-table-wrap">
+                          <table className="claims-table">
+                            <thead><tr><th>Description</th><th>Qty</th><th>Billable amount</th></tr></thead>
+                            <tbody>
+                              {lineItems.map((li) => (
+                                <tr key={li.id}>
+                                  <td>{li.description}</td>
+                                  <td>{li.quantity}{li.unit ? ` ${li.unit}` : ''}</td>
+                                  <td>${Number(li.total_price).toFixed(2)}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
                       )}
                       {feeAllowed && (
                         <>

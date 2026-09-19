@@ -69,6 +69,11 @@
   --badge-gray-bg: rgba(252, 249, 243, 0.1);   --badge-gray-text: #d8d0c0;
 }
 
+html, body {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;

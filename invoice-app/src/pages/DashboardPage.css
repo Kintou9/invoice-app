@@ -1,3 +1,4 @@
+.dashboard { width: 100%; max-width: 1400px; margin: 0 auto; }
 .dashboard h1 { font-size: 1.6rem; font-weight: 700; color: var(--text-primary); margin: 0; }
 .dashboard-subtitle { color: var(--text-muted); margin: 0.25rem 0 0; }
 .dashboard-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 1rem; }

@@ -45,7 +45,7 @@ function initials(name) {
   return ((parts[0]?.[0] || '') + (parts[1]?.[0] || '')).toUpperCase();
 }
 
-export default function Sidebar() {
+export default function Sidebar({ mobileOpen, onCloseMobile }) {
   const { user, logout, switchOrganization } = useAuth();
   const navigate = useNavigate();
   const items = navItems[user?.role] || [];
@@ -111,7 +111,9 @@ export default function Sidebar() {
   };
 
   return (
-    <aside className={`sidebar ${collapsed ? 'collapsed' : ''}`}>
+    <>
+      {mobileOpen && <div className="sidebar-backdrop" onClick={onCloseMobile} />}
+      <aside className={`sidebar ${collapsed ? 'collapsed' : ''} ${mobileOpen ? 'mobile-open' : ''}`}>
       <div className="sidebar-brand-row">
         <Link to="/dashboard" className="sidebar-brand" title="Trackly">
           <FileText size={22} />
@@ -161,7 +163,7 @@ export default function Sidebar() {
 
       <nav className="sidebar-nav">
         {items.map(({ to, icon: Icon, label }) => (
-          <NavLink key={to} to={to} end={to === '/dashboard'} className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`} title={label}>
+          <NavLink key={to} to={to} end={to === '/dashboard'} onClick={onCloseMobile} className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`} title={label}>
             <Icon size={18} />
             <span>{label}</span>
           </NavLink>
@@ -189,6 +191,7 @@ export default function Sidebar() {
           <ChevronDown size={14} className="sidebar-user-chevron" />
         </button>
       </div>
-    </aside>
+      </aside>
+    </>
   );
 }

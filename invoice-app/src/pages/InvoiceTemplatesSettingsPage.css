@@ -1,7 +1,11 @@
+.invoice-templates-page { width: 100%; max-width: 1100px; margin: 0 auto; }
+
 .invoice-templates-page .page-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
   margin-bottom: 1.25rem;
 }
 

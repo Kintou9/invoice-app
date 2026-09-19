@@ -1,4 +1,4 @@
-.dt-page { max-width: 1400px; }
+.dt-page { width: 100%; max-width: 1400px; margin: 0 auto; }
 
 .dt-header { margin-bottom: 1.25rem; }
 .dt-header h1 { margin: 0; font-size: 1.6rem; font-weight: 700; color: var(--text-primary); }

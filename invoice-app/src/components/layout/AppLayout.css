@@ -23,13 +23,22 @@
   z-index: 40;
 }
 
+.app-top-strip-spacer { flex: 1; }
+
+button.mobile-nav-toggle { display: none; }
+
 .main-content {
   flex: 1;
   padding: 1.75rem;
   background: var(--bg);
   overflow-y: auto;
+  min-width: 0;
 }
 
 @media (max-width: 700px) {
   .main-content { padding: 1.1rem; }
+}
+
+@media (max-width: 640px) {
+  button.mobile-nav-toggle { display: flex; }
 }

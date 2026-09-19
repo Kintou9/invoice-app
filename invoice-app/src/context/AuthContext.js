@@ -12,7 +12,7 @@ export function AuthProvider({ children }) {
     if (token) {
       api.get('/auth/me')
         .then((res) => setUser(res.data))
-        .catch(() => localStorage.removeItem('token'))
+        .catch((err) => { if (err.response?.status === 401) localStorage.removeItem('token'); })
         .finally(() => setLoading(false));
     } else {
       setLoading(false);
