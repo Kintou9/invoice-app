@@ -3,6 +3,7 @@ import { NavLink, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import Avatar from '../shared/Avatar';
+import { SUPPLIERS_ENABLED } from '../../config/featureFlags';
 import {
   LayoutDashboard, ClipboardList, FileText, Users, Folder, Store, Palette, Files,
   Building2, ChevronDown, ChevronsLeft, ChevronsRight, Check, LogOut, UserCircle,
@@ -16,7 +17,7 @@ const navItems = {
     { to: '/invoices', icon: FileText, label: 'Invoices' },
     { to: '/team', icon: Users, label: 'Team' },
     { to: '/manager-folder', icon: Folder, label: 'Manager Folder' },
-    { to: '/suppliers', icon: Store, label: 'Suppliers' },
+    { to: '/suppliers', icon: Store, label: 'Suppliers', feature: 'suppliers' },
     { to: '/settings/document-templates', icon: Palette, label: 'Document Templates' },
   ],
   manager: [
@@ -43,7 +44,16 @@ const navItems = {
 export default function Sidebar({ mobileOpen, onCloseMobile }) {
   const { user, logout, switchOrganization } = useAuth();
   const navigate = useNavigate();
-  const items = navItems[user?.role] || [];
+  // Suppliers is a real planned feature, gated behind SUPPLIERS_ENABLED
+  // (see config/featureFlags.js) until it's actually built. Off in
+  // production for everyone; an owner running the app in development still
+  // sees the link (with a badge) so it stays easy to build against, but it
+  // still routes to the same coming-soon page as anyone else — see the
+  // /suppliers route in App.js, which is the real restriction.
+  const isDevEnvironment = process.env.NODE_ENV === 'development';
+  const items = (navItems[user?.role] || [])
+    .filter((item) => item.feature !== 'suppliers' || SUPPLIERS_ENABLED || isDevEnvironment)
+    .map((item) => (item.feature === 'suppliers' && !SUPPLIERS_ENABLED ? { ...item, badge: 'Coming soon' } : item));
 
   const [organizations, setOrganizations] = useState([]);
   const [orgOpen, setOrgOpen] = useState(false);
@@ -157,10 +167,11 @@ export default function Sidebar({ mobileOpen, onCloseMobile }) {
       )}
 
       <nav className="sidebar-nav">
-        {items.map(({ to, icon: Icon, label }) => (
-          <NavLink key={to} to={to} end={to === '/dashboard'} onClick={onCloseMobile} className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`} title={label}>
+        {items.map(({ to, icon: Icon, label, badge }) => (
+          <NavLink key={to} to={to} end={to === '/dashboard'} onClick={onCloseMobile} className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`} title={badge ? `${label} (${badge})` : label}>
             <Icon size={18} />
             <span>{label}</span>
+            {badge && <span className="sidebar-link-badge">{badge}</span>}
           </NavLink>
         ))}
       </nav>
