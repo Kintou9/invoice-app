@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-toastify';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
+import Avatar from '../components/shared/Avatar';
 import { ROLE_PERMISSIONS } from '../utils/rolePermissions';
 import { formatWorkload } from '../utils/teamWorkload';
 import InviteMemberModal from '../components/team/InviteMemberModal';
@@ -182,7 +183,7 @@ export default function TeamPage() {
                       <tr key={m.id} className={m.id === selectedId ? 'team-row-active' : ''} onClick={() => setSelectedId(m.id)}>
                         <td>
                           <div className="team-member-cell">
-                            <span className="team-avatar">{(m.name || m.email)[0].toUpperCase()}</span>
+                            <Avatar src={m.avatar_url} name={m.name || m.email} size="md" className="team-avatar" />
                             <div>
                               <strong>{m.name || 'Pending'}{isSelf && <span className="team-you-badge">You</span>}</strong>
                               <span>{m.email}</span>

@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
+import Avatar from '../components/shared/Avatar';
 import { eventLabel, eventDetails } from '../utils/activityLabels';
 import {
   ClipboardList, FileText, CheckCircle, Clock, ChevronLeft, ChevronRight, X, Plus,
@@ -556,7 +557,7 @@ export default function DashboardPage() {
                       <span className="week-agenda-title">{c.customer_name || c.title}</span>
                       <span className="week-agenda-sub">{c.type_brand || c.title || 'Service Call'}</span>
                     </div>
-                    {c.assigned_to_name && <span className="week-agenda-avatar">{c.assigned_to_name.split(' ').map((p) => p[0]).slice(0, 2).join('')}</span>}
+                    {c.assigned_to_name && <Avatar src={c.assigned_to_avatar_url} name={c.assigned_to_name} size="xs" className="week-agenda-avatar" />}
                   </Link>
                 ))
               )}

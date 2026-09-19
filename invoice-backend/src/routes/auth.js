@@ -8,6 +8,7 @@ const authenticate = require('../middleware/authenticate');
 const { sendPasswordResetEmail } = require('../services/email');
 const { logAction } = require('../services/auditLog');
 const { hashToken } = require('../utils/tokenHash');
+const { generateSasUrl } = require('../services/azureBlob');
 
 const RESET_EXPIRY_MS = 60 * 60 * 1000; // 1 hour — shorter than an invite's
 // 7 days, since this grants access to an *existing* account rather than
@@ -73,6 +74,7 @@ function toUserResponse(user, membership) {
     id: user.id,
     name: user.name,
     email: user.email,
+    avatarUrl: user.avatar_thumb_blob_url ? generateSasUrl(user.avatar_thumb_blob_url, 60) : null,
     role: membership.role,
     organizationId: membership.organization_id,
     organizationName: membership.organization_name,
@@ -198,7 +200,7 @@ router.post('/login', async (req, res, next) => {
 router.get('/me', authenticate, async (req, res, next) => {
   try {
     const { rows } = await db.query(
-      'SELECT id, name, email, created_at FROM users WHERE id = $1',
+      'SELECT id, name, email, avatar_thumb_blob_url, created_at FROM users WHERE id = $1',
       [req.user.id]
     );
     if (!rows[0]) return res.status(404).json({ error: 'User not found' });
@@ -344,7 +346,7 @@ router.post('/accept-invite', async (req, res, next) => {
       metadata: { role: invite.role },
     });
 
-    const { rows: userRows } = await db.query('SELECT id, name, email FROM users WHERE id = $1', [invite.user_id]);
+    const { rows: userRows } = await db.query('SELECT id, name, email, avatar_thumb_blob_url FROM users WHERE id = $1', [invite.user_id]);
     const user = userRows[0];
     const membership = {
       membership_id: invite.membership_id,

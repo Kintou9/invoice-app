@@ -217,19 +217,6 @@
 .sidebar-user-btn:hover { background: var(--sidebar-hover); }
 .sidebar.collapsed .sidebar-user-btn { justify-content: center; }
 
-.sidebar-avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: var(--primary);
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.78rem;
-  font-weight: 700;
-  flex-shrink: 0;
-}
 
 .sidebar-user-info {
   flex: 1;

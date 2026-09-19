@@ -263,20 +263,20 @@
   cursor: pointer;
   min-height: 44px;
 }
-.jobs-avatar {
-  width: 26px;
-  height: 26px;
+/* Assigned-worker avatars render through the shared Avatar component
+   (avatar-xs) for sizing/color — .jobs-avatar-empty is the one remaining
+   plain span, for the "unassigned" placeholder icon. */
+.jobs-avatar-empty {
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
-  background: var(--primary-soft);
-  color: var(--primary);
+  background: var(--surface-alt);
+  color: var(--text-faint);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.66rem;
-  font-weight: 700;
   flex-shrink: 0;
 }
-.jobs-avatar-empty { background: var(--surface-alt); color: var(--text-faint); }
 
 .work-status-badge {
   font-size: 0.75rem;

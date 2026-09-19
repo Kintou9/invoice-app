@@ -9,9 +9,13 @@ jest.mock('../src/db', () => {
   return { query: unexpected, pool: { query: unexpected, connect: unexpected, end: unexpected } };
 });
 jest.mock('../src/services/azureBlob', () => {
-  const unexpected = jest.fn(() => { throw new Error('Unexpected Azure call'); });
-  return { uploadBuffer: unexpected, downloadBuffer: unexpected,
-    generateSasUrl: unexpected, deleteBlob: unexpected, listBlobs: unexpected };
+  // Five independent functions in the real module — each needs its own
+  // mock. A single shared jest.fn() here (as this once was) means mocking
+  // one silently overwrites every other one's queued/default behavior,
+  // since they're literally the same underlying mock instance.
+  const unexpected = () => jest.fn(() => { throw new Error('Unexpected Azure call'); });
+  return { uploadBuffer: unexpected(), downloadBuffer: unexpected(),
+    generateSasUrl: unexpected(), deleteBlob: unexpected(), listBlobs: unexpected() };
 });
 jest.mock('../src/services/claude', () => {
   const unexpected = jest.fn(() => { throw new Error('Unexpected Claude call'); });

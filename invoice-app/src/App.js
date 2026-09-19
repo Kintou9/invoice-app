@@ -26,6 +26,7 @@ import DocumentTemplatesPage from './pages/DocumentTemplatesPage';
 import MapYourFormPage from './pages/MapYourFormPage';
 import TestAndActivatePage from './pages/TestAndActivatePage';
 import MyDocumentsPage from './pages/MyDocumentsPage';
+import ProfilePage from './pages/ProfilePage';
 
 function App() {
   return (
@@ -110,6 +111,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <AppLayout><MyDocumentsPage /></AppLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute>
+                <AppLayout><ProfilePage /></AppLayout>
               </ProtectedRoute>
             }
           />

@@ -21,6 +21,15 @@ async function isMemberOfOrg(membershipId, organizationId) {
   return rows.length > 0;
 }
 
+// Converts the stable assigned_to_avatar_blob_url column (joined in
+// alongside assigned_to_name below) into a fresh SAS URL for the response,
+// same reasoning as everywhere else a blob URL leaves this API.
+function withAssignedAvatar(row) {
+  row.assigned_to_avatar_url = row.assigned_to_avatar_blob_url ? generateSasUrl(row.assigned_to_avatar_blob_url, 60) : null;
+  delete row.assigned_to_avatar_blob_url;
+  return row;
+}
+
 // GET /api/claims — org- and role-scoped list
 router.get('/', authenticate, async (req, res, next) => {
   try {
@@ -31,7 +40,7 @@ router.get('/', authenticate, async (req, res, next) => {
     // user it belongs to.
     if (req.user.role === 'worker') {
       query = `
-        SELECT c.*, u.name AS assigned_to_name, cb.name AS created_by_name
+        SELECT c.*, u.name AS assigned_to_name, u.avatar_thumb_blob_url AS assigned_to_avatar_blob_url, cb.name AS created_by_name
         FROM claims c
         LEFT JOIN organization_members om_a ON c.assigned_to = om_a.id
         LEFT JOIN users u ON om_a.user_id = u.id
@@ -42,7 +51,7 @@ router.get('/', authenticate, async (req, res, next) => {
       params = [req.user.organizationId, req.user.membershipId];
     } else {
       query = `
-        SELECT c.*, u.name AS assigned_to_name, cb.name AS created_by_name
+        SELECT c.*, u.name AS assigned_to_name, u.avatar_thumb_blob_url AS assigned_to_avatar_blob_url, cb.name AS created_by_name
         FROM claims c
         LEFT JOIN organization_members om_a ON c.assigned_to = om_a.id
         LEFT JOIN users u ON om_a.user_id = u.id
@@ -54,7 +63,7 @@ router.get('/', authenticate, async (req, res, next) => {
     }
 
     const { rows } = await db.query(query, params);
-    res.json(rows);
+    res.json(rows.map(withAssignedAvatar));
   } catch (err) {
     next(err);
   }
@@ -64,7 +73,7 @@ router.get('/', authenticate, async (req, res, next) => {
 router.get('/:id', authenticate, async (req, res, next) => {
   try {
     const { rows } = await db.query(
-      `SELECT c.*, u.name AS assigned_to_name, cb.name AS created_by_name
+      `SELECT c.*, u.name AS assigned_to_name, u.avatar_thumb_blob_url AS assigned_to_avatar_blob_url, cb.name AS created_by_name
        FROM claims c
        LEFT JOIN organization_members om_a ON c.assigned_to = om_a.id
        LEFT JOIN users u ON om_a.user_id = u.id
@@ -74,6 +83,7 @@ router.get('/:id', authenticate, async (req, res, next) => {
       [req.params.id, req.user.organizationId]
     );
     if (!rows[0]) return res.status(404).json({ error: 'Claim not found' });
+    withAssignedAvatar(rows[0]);
 
     // Workers can only see their own claims
     if (req.user.role === 'worker' && rows[0].assigned_to !== req.user.membershipId) {

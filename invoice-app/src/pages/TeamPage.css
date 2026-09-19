@@ -97,19 +97,6 @@
 .team-table td { padding: 0.65rem 0.75rem; color: var(--text-body); vertical-align: middle; white-space: nowrap; }
 
 .team-member-cell { display: flex; align-items: center; gap: 0.6rem; }
-.team-avatar {
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  background: var(--primary-soft);
-  color: var(--primary);
-  font-weight: 700;
-  font-size: 0.85rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
 .team-member-cell strong { display: flex; align-items: center; gap: 0.4rem; color: var(--text-primary); font-weight: 600; }
 .team-member-cell span { display: block; font-size: 0.78rem; color: var(--text-muted); }
 .team-pending-icon { color: var(--text-faint); }

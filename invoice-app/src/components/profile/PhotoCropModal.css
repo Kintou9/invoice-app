@@ -1,0 +1,65 @@
+.photo-crop-modal {
+  background: var(--surface);
+  border-radius: 14px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.22);
+  width: 100%;
+  max-width: 480px;
+  max-height: calc(100vh - 3rem);
+  overflow-y: auto;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.photo-crop-hint { margin: 0; font-size: 0.85rem; color: var(--text-muted); }
+
+.photo-crop-area {
+  position: relative;
+  width: 100%;
+  height: 320px;
+  background: #1a1a1a;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.photo-crop-zoom-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.85rem;
+  color: var(--text-body);
+}
+.photo-crop-zoom-row span { flex-shrink: 0; font-weight: 600; }
+.photo-crop-zoom-row input[type='range'] { flex: 1; accent-color: var(--primary); }
+.photo-crop-zoom-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text-body);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.photo-crop-zoom-btn:hover { background: var(--surface-alt); }
+
+.photo-crop-choose-different {
+  align-self: flex-start;
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--primary);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+@media (max-width: 640px) {
+  .photo-crop-modal { max-width: 100%; padding: 1.1rem; }
+  .photo-crop-area { height: 60vh; min-height: 240px; }
+}
