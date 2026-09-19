@@ -54,6 +54,8 @@ describe('POST /api/invoices/:id/generate-pdf', () => {
         }],
       })
       .mockResolvedValueOnce({ rows: [] }) // line items lookup inside generateAndStorePdf
+      .mockResolvedValueOnce({ rows: [] }) // resolveTemplateAssignment — no template_assignments row
+      .mockResolvedValueOnce({ rows: [] }) // resolveTemplateAssignment — no is_default_invoice template either, falls back to the generic renderer
       .mockResolvedValueOnce({ rows: [] }); // UPDATE invoices SET pdf_blob_url
 
     azure.uploadBuffer.mockResolvedValueOnce('https://storage.example/invoice-pdfs/org-1/inv-1.pdf');

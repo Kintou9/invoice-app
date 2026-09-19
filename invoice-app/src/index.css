@@ -150,6 +150,13 @@ body {
 .status-rejected { background: var(--badge-red-bg); color: var(--badge-red-text); }
 .status-draft { background: var(--badge-gray-bg); color: var(--badge-gray-text); }
 
+/* Invoice billing statuses (manager Invoices page) */
+.status-needs_approval { background: var(--badge-orange-bg); color: var(--badge-orange-text); }
+.status-ready_to_send { background: var(--badge-blue-bg); color: var(--badge-blue-text); }
+.status-unpaid { background: var(--badge-red-bg); color: var(--badge-red-text); }
+.status-part_paid { background: var(--badge-green-bg); color: var(--badge-green-text); }
+.status-paid { background: var(--badge-green-bg); color: var(--badge-green-text); }
+
 /* Part purchase statuses */
 .status-ordered { background: var(--badge-blue-bg); color: var(--badge-blue-text); }
 .status-shipped { background: var(--badge-yellow-bg); color: var(--badge-yellow-text); }

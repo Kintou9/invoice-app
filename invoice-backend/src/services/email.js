@@ -16,7 +16,7 @@ const getClient = () => {
  * Send a team invitation email with a link to accept it.
  * inviteUrl should already include the token as a query param.
  */
-async function sendInviteEmail({ to, organizationName, inviterName, role, inviteUrl }) {
+async function sendInviteEmail({ to, organizationName, inviterName, role, inviteUrl, message, expiresInDays = 7 }) {
   const client = getClient();
   const { error } = await client.emails.send({
     from: config.resend.fromEmail,
@@ -24,8 +24,9 @@ async function sendInviteEmail({ to, organizationName, inviterName, role, invite
     subject: `${inviterName} invited you to join ${organizationName} on Trackly`,
     html: `
       <p>${inviterName} has invited you to join <strong>${organizationName}</strong> on Trackly as a <strong>${role}</strong>.</p>
+      ${message ? `<p>"${message}"</p>` : ''}
       <p><a href="${inviteUrl}">Accept the invitation</a> to set up your account.</p>
-      <p>This link expires in 7 days.</p>
+      <p>This link expires in ${expiresInDays} day${expiresInDays === 1 ? '' : 's'}.</p>
     `,
   });
   if (error) throw new Error(error.message || 'Failed to send invite email');

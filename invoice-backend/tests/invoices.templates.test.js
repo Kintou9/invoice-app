@@ -70,7 +70,7 @@ describe('PATCH /api/invoices/:id — field_values and template switching', () =
 
     expect(res.status).toBe(200);
     const updateParams = db.query.mock.calls[1][1];
-    expect(JSON.parse(updateParams[3])).toEqual({ a: '1', b: '2' });
+    expect(JSON.parse(updateParams[6])).toEqual({ a: '1', b: '2' });
   });
 
   test('switching templates drops field_values whose key no longer exists on the new template', async () => {
@@ -85,7 +85,7 @@ describe('PATCH /api/invoices/:id — field_values and template switching', () =
     await request(app, { method: 'PATCH', url: '/api/invoices/inv-1', token: ownerToken, body: { field_template_id: 'tmpl-new' } });
 
     const updateParams = db.query.mock.calls[2][1];
-    expect(JSON.parse(updateParams[3])).toEqual({ kept_field: 'x' });
+    expect(JSON.parse(updateParams[6])).toEqual({ kept_field: 'x' });
   });
 
   test('cannot edit an approved invoice', async () => {
@@ -94,6 +94,47 @@ describe('PATCH /api/invoices/:id — field_values and template switching', () =
     const res = await request(app, { method: 'PATCH', url: '/api/invoices/inv-1', token: ownerToken, body: { field_values: { a: '1' } } });
 
     expect(res.status).toBe(409);
+  });
+});
+
+describe('PATCH /api/invoices/:id — service call fee only applies to dispatch trades', () => {
+  test('rejects a service call fee on a non-qualifying industry (flooring)', async () => {
+    db.query.mockResolvedValueOnce({
+      rows: [{ id: 'inv-1', status: 'draft', technician_id: 'member-1', field_template_snapshot: { industry_key: 'flooring' } }],
+    });
+
+    const res = await request(app, { method: 'PATCH', url: '/api/invoices/inv-1', token: ownerToken, body: { service_call_fee: 75 } });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/service call fee/i);
+  });
+
+  test('accepts a service call fee on a qualifying industry (hvac)', async () => {
+    db.query
+      .mockResolvedValueOnce({ rows: [{ id: 'inv-1', status: 'draft', technician_id: 'member-1', field_template_snapshot: { industry_key: 'hvac' } }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'inv-1', service_call_fee: '75.00' }] });
+
+    const res = await request(app, { method: 'PATCH', url: '/api/invoices/inv-1', token: ownerToken, body: { service_call_fee: 75 } });
+
+    expect(res.status).toBe(200);
+  });
+
+  test('a zero fee is always allowed regardless of industry', async () => {
+    db.query
+      .mockResolvedValueOnce({ rows: [{ id: 'inv-1', status: 'draft', technician_id: 'member-1', field_template_snapshot: { industry_key: 'general' } }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'inv-1', service_call_fee: '0' }] });
+
+    const res = await request(app, { method: 'PATCH', url: '/api/invoices/inv-1', token: ownerToken, body: { service_call_fee: 0 } });
+
+    expect(res.status).toBe(200);
+  });
+
+  test('rejects a fee when the invoice has no template/industry at all', async () => {
+    db.query.mockResolvedValueOnce({ rows: [{ id: 'inv-1', status: 'draft', technician_id: 'member-1', field_template_snapshot: null }] });
+
+    const res = await request(app, { method: 'PATCH', url: '/api/invoices/inv-1', token: ownerToken, body: { service_call_fee: 50 } });
+
+    expect(res.status).toBe(400);
   });
 });
 
@@ -120,10 +161,11 @@ describe('historical invoices unchanged after a template edit', () => {
   test("GET /api/invoices/:id returns the invoice's own stored snapshot verbatim, never live template data", async () => {
     const staleSnapshot = { ...defaultTemplate, name: 'General (v1, before edit)' };
     db.query
-      .mockResolvedValueOnce({ rows: [{ id: 'inv-1', organization_id: 'org-1', technician_id: 'member-1', field_template_snapshot: staleSnapshot }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'inv-1', organization_id: 'org-1', technician_id: 'member-1', service_call_fee: 0, field_template_snapshot: staleSnapshot }] })
       .mockResolvedValueOnce({ rows: [] }) // photos
       .mockResolvedValueOnce({ rows: [] }) // parts
-      .mockResolvedValueOnce({ rows: [] }); // line items
+      .mockResolvedValueOnce({ rows: [] }) // line items
+      .mockResolvedValueOnce({ rows: [] }); // payments
 
     const res = await request(app, { method: 'GET', url: '/api/invoices/inv-1', token: ownerToken });
 

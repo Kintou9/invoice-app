@@ -82,6 +82,27 @@
 }
 .landing-nav-links a:hover { opacity: 1; }
 
+.landing-nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.landing-signin-btn {
+  background: none;
+  color: var(--navy);
+  border: 1px solid var(--navy);
+  border-radius: 8px;
+  padding: 0.6rem 1.2rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  opacity: 0.85;
+  transition: opacity 0.15s, background 0.15s;
+  white-space: nowrap;
+}
+.landing-signin-btn:hover { opacity: 1; background: rgba(26, 44, 63, 0.06); }
+
 .landing-demo-btn {
   background: var(--olive);
   color: #fff;

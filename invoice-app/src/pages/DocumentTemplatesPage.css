@@ -1,0 +1,138 @@
+.dt-page { max-width: 1400px; }
+
+.dt-header { margin-bottom: 1.25rem; }
+.dt-header h1 { margin: 0; font-size: 1.6rem; font-weight: 700; color: var(--text-primary); }
+.dt-subtitle { margin: 0.3rem 0 0; color: var(--text-muted); font-size: 0.92rem; }
+
+/* Creation cards */
+.dt-creation-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem; }
+.dt-creation-card {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+.dt-creation-recommended { border-color: var(--primary); background: var(--primary-soft); }
+.dt-badge-recommended {
+  position: absolute; top: 1rem; right: 1rem;
+  background: var(--primary); color: #fff;
+  font-size: 0.7rem; font-weight: 700; border-radius: 999px; padding: 3px 10px;
+}
+.dt-creation-icon {
+  width: 52px; height: 52px; border-radius: 12px;
+  background: var(--surface-alt); color: var(--primary);
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 0.4rem;
+}
+.dt-creation-card h2 { margin: 0; font-size: 1.15rem; font-weight: 700; color: var(--text-primary); }
+.dt-creation-card > p { margin: 0 0 0.4rem; font-size: 0.86rem; color: var(--text-muted); }
+.dt-creation-card ul { list-style: none; margin: 0.6rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.35rem; }
+.dt-creation-card li { display: flex; align-items: center; gap: 0.4rem; font-size: 0.82rem; color: var(--text-body); }
+.dt-creation-card li svg { color: var(--primary); flex-shrink: 0; }
+
+/* Tabs + toolbar */
+.dt-tabs {
+  display: flex; gap: 0.4rem; margin-bottom: 1rem;
+  background: var(--surface-alt); border-radius: 10px; padding: 4px; width: fit-content;
+}
+.dt-tabs button {
+  background: none; border: none; border-radius: 8px;
+  padding: 0.45rem 0.9rem; font-size: 0.85rem; font-weight: 600;
+  color: var(--text-muted); cursor: pointer;
+}
+.dt-tabs button.active { background: var(--surface); color: var(--text-primary); box-shadow: 0 1px 2px rgba(0,0,0,0.06); }
+
+.dt-toolbar { margin-bottom: 1.25rem; }
+.dt-search {
+  display: flex; align-items: center; gap: 0.5rem;
+  max-width: 340px; border: 1px solid var(--border); border-radius: 8px;
+  padding: 0.5rem 0.75rem; color: var(--text-muted); background: var(--surface);
+}
+.dt-search input { border: none; outline: none; background: none; font-size: 0.88rem; color: var(--text-body); flex: 1; }
+
+/* Card grid */
+.dt-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.1rem; }
+.dt-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+  overflow: hidden; display: flex; flex-direction: column;
+}
+.dt-card-thumb {
+  position: relative; aspect-ratio: 4 / 3; background: var(--surface-alt);
+  display: flex; align-items: center; justify-content: center; color: var(--text-faint);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.dt-card-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.dt-star {
+  position: absolute; top: 0.6rem; right: 0.6rem;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+  width: 30px; height: 30px; display: flex; align-items: center; justify-content: center;
+  color: var(--text-faint); cursor: pointer;
+}
+.dt-star-active { color: #d9a441; }
+.dt-card-body { padding: 0.9rem 1rem 0.4rem; display: flex; flex-direction: column; gap: 0.4rem; }
+.dt-card-body strong { font-size: 0.98rem; color: var(--text-primary); }
+.dt-card-meta { display: flex; align-items: center; gap: 0.35rem; font-size: 0.78rem; color: var(--text-muted); }
+.dt-card-status { display: flex; align-items: center; font-size: 0.8rem; color: var(--text-body); }
+.dt-status-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 0.4rem; }
+.dt-status-green { background: var(--badge-green-text); }
+.dt-status-orange { background: var(--badge-orange-text); }
+.dt-status-blue { background: var(--badge-blue-text); }
+.dt-status-gray { background: var(--badge-gray-text); }
+.dt-status-red { background: var(--badge-red-text); }
+.dt-needs-review { color: var(--badge-orange-text); font-weight: 600; }
+.dt-card-actions { display: flex; align-items: center; gap: 0.5rem; padding: 0.85rem 1rem; border-top: 1px solid var(--border-subtle); margin-top: auto; }
+
+.dt-menu-wrap { position: relative; margin-left: auto; }
+.dt-menu {
+  position: absolute; bottom: calc(100% + 6px); right: 0;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12); overflow: hidden; z-index: 20; min-width: 150px;
+}
+.dt-menu button {
+  display: flex; align-items: center; gap: 0.5rem; width: 100%; text-align: left;
+  background: none; border: none; padding: 0.6rem 0.85rem; font-size: 0.85rem; color: var(--text-body); cursor: pointer;
+}
+.dt-menu button:hover { background: var(--surface-alt); }
+.dt-menu-danger { color: var(--badge-red-text); }
+
+/* Upload modal (shares the team-modal-overlay visual language) */
+.dt-modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 1000;
+  display: flex; align-items: center; justify-content: center; padding: 1.5rem;
+}
+.dt-modal {
+  background: var(--surface); border-radius: 14px; box-shadow: 0 20px 60px rgba(0,0,0,0.22);
+  width: 100%; max-width: 460px; max-height: calc(100vh - 3rem); overflow-y: auto;
+  padding: 1.5rem; display: flex; flex-direction: column; gap: 0.9rem;
+}
+.dt-modal-header { display: flex; align-items: flex-start; justify-content: space-between; }
+.dt-modal-header h3 { margin: 0; font-size: 1.1rem; font-weight: 700; color: var(--text-primary); }
+.dt-modal-close { background: none; border: none; font-size: 1.4rem; line-height: 1; color: var(--text-muted); cursor: pointer; padding: 0; }
+
+.dt-dropzone {
+  border: 2px dashed var(--border); border-radius: 12px; padding: 1.75rem 1rem;
+  display: flex; flex-direction: column; align-items: center; text-align: center; gap: 0.35rem;
+  color: var(--text-muted); cursor: pointer; transition: border-color 0.15s, background 0.15s;
+}
+.dt-dropzone:hover, .dt-dropzone-active { border-color: var(--primary); background: var(--primary-soft); }
+.dt-dropzone-filled { border-style: solid; color: var(--text-body); }
+.dt-dropzone strong { color: var(--text-primary); font-size: 0.92rem; }
+.dt-dropzone span { font-size: 0.78rem; }
+
+.dt-error { margin: 0; font-size: 0.82rem; color: var(--badge-red-text); }
+
+.dt-field { display: flex; flex-direction: column; gap: 0.35rem; font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); }
+.dt-field input, .dt-field select {
+  border: 1px solid var(--border); border-radius: 8px; padding: 0.55rem 0.75rem;
+  font-size: 0.88rem; font-weight: 400; color: var(--text-body); background: var(--surface); font-family: inherit;
+}
+.dt-modal-actions { display: flex; justify-content: flex-end; gap: 0.6rem; }
+
+@media (max-width: 860px) {
+  .dt-creation-row { grid-template-columns: 1fr; }
+}

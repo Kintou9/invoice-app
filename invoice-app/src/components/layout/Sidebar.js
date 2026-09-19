@@ -11,24 +11,31 @@ import './Sidebar.css';
 const navItems = {
   owner: [
     { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-    { to: '/claims', icon: ClipboardList, label: 'Claims' },
+    { to: '/claims', icon: ClipboardList, label: 'Jobs' },
     { to: '/invoices', icon: FileText, label: 'Invoices' },
-    { to: '/users', icon: Users, label: 'Users' },
+    { to: '/team', icon: Users, label: 'Team' },
     { to: '/manager-folder', icon: Folder, label: 'Manager Folder' },
     { to: '/suppliers', icon: Store, label: 'Suppliers' },
-    { to: '/settings/invoice-templates', icon: Palette, label: 'Invoice Templates' },
+    { to: '/settings/document-templates', icon: Palette, label: 'Document Templates' },
   ],
   manager: [
     { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-    { to: '/claims', icon: ClipboardList, label: 'Claims' },
+    { to: '/claims', icon: ClipboardList, label: 'Jobs' },
     { to: '/invoices', icon: FileText, label: 'Invoices' },
+    { to: '/team', icon: Users, label: 'Team' },
     { to: '/manager-folder', icon: Folder, label: 'Manager Folder' },
+    { to: '/settings/document-templates', icon: Palette, label: 'Document Templates' },
   ],
   worker: [
     { to: '/dashboard', icon: LayoutDashboard, label: 'My dashboard' },
-    { to: '/claims', icon: ClipboardList, label: 'My claims' },
+    { to: '/claims', icon: ClipboardList, label: 'My jobs' },
     { to: '/invoices', icon: FileText, label: 'My invoices' },
     { to: '/documents', icon: Files, label: 'My documents' },
+  ],
+  viewer: [
+    { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+    { to: '/claims', icon: ClipboardList, label: 'Jobs' },
+    { to: '/invoices', icon: FileText, label: 'Invoices' },
   ],
 };
 

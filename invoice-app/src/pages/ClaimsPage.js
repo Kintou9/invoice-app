@@ -1,9 +1,14 @@
-import { useEffect, useRef, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
-import { Plus, Search, Upload, Sparkles, X, FileText, Trash2 } from 'lucide-react';
+import { eventLabel, eventDetails } from '../utils/activityLabels';
+import { getWorkStatus, WORK_STATUS } from '../utils/workStatus';
+import {
+  Plus, Search, Upload, Sparkles, X, FileText, Trash2, ChevronDown,
+  MoreHorizontal, MessageSquare, User,
+} from 'lucide-react';
 import './ClaimsPage.css';
 
 const EMPTY_FORM = {
@@ -12,21 +17,45 @@ const EMPTY_FORM = {
   date_of_service: '', type_brand: '', model_number: '', serial_number: '',
 };
 
+const ROWS_PER_PAGE = 25;
+
+function initials(name) {
+  if (!name) return '?';
+  const parts = name.trim().split(/\s+/);
+  return ((parts[0]?.[0] || '') + (parts[1]?.[0] || '')).toUpperCase();
+}
+
+const TABS = [
+  { key: 'all', label: 'All jobs' },
+  { key: 'unassigned', label: 'Unassigned' },
+  { key: 'in_progress', label: 'In progress' },
+  { key: 'needs_review', label: 'Needs review' },
+  { key: 'ready_to_invoice', label: 'Ready to invoice' },
+];
+
 export default function ClaimsPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const photoInputRef = useRef(null);
   const templateInputRef = useRef(null);
+  const newJobMenuRef = useRef(null);
 
   const [tab, setTab] = useState('claims');
   const [claims, setClaims] = useState([]);
+  const [invoices, setInvoices] = useState([]);
+  const [activity, setActivity] = useState([]);
   const [technicians, setTechnicians] = useState([]);
   const [templates, setTemplates] = useState([]);
   const [search, setSearch] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [searchParams] = useSearchParams();
-  const [statusFilter, setStatusFilter] = useState(searchParams.get('status') || '');
   const [workerFilter, setWorkerFilter] = useState(searchParams.get('worker') || '');
+  const [serviceFilter, setServiceFilter] = useState('');
+  const [statusTab, setStatusTab] = useState(searchParams.get('status') || 'all');
   const [reassigningId, setReassigningId] = useState(null);
+  const [page, setPage] = useState(1);
+  const [newJobMenuOpen, setNewJobMenuOpen] = useState(false);
+  const [generatingInvoiceFor, setGeneratingInvoiceFor] = useState(null);
 
   const [form, setForm] = useState(EMPTY_FORM);
   const [selectedTemplateId, setSelectedTemplateId] = useState('');
@@ -37,13 +66,17 @@ export default function ClaimsPage() {
   const [templateUploading, setTemplateUploading] = useState(false);
   const [loading, setLoading] = useState(true);
 
+  const isWorker = user.role === 'worker';
+
   useEffect(() => {
     api.get('/claims').then((r) => setClaims(r.data)).finally(() => setLoading(false));
-    if (user.role !== 'worker') {
+    api.get('/invoices').then((r) => setInvoices(r.data)).catch(() => {});
+    if (!isWorker) {
       api.get('/users/technicians').then((r) => setTechnicians(r.data));
       api.get('/upload/claim-templates').then((r) => setTemplates(r.data));
+      api.get('/audit-log?limit=5').then((r) => setActivity(r.data)).catch(() => {});
     }
-  }, [user.role]);
+  }, [isWorker]);
 
   // Dashboard quick-create tiles ("From photo" / "Enter manually") link
   // here with ?new=1&mode=photo|manual — both just open this same combined
@@ -51,14 +84,29 @@ export default function ClaimsPage() {
   // photo upload has always been an optional accelerator on this one form,
   // not a separate flow.
   useEffect(() => {
-    if (searchParams.get('new') !== '1' || user.role === 'worker') return;
+    if (searchParams.get('new') !== '1' || isWorker) return;
     setShowForm(true);
     if (searchParams.get('mode') === 'photo') {
-      // Wait for the form (and its file input) to actually render.
       requestAnimationFrame(() => photoInputRef.current?.click());
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    const handleClick = (e) => {
+      if (newJobMenuRef.current && !newJobMenuRef.current.contains(e.target)) setNewJobMenuOpen(false);
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  const invoicesByClaim = useMemo(() => {
+    const map = {};
+    for (const inv of invoices) {
+      (map[inv.claim_id] = map[inv.claim_id] || []).push(inv);
+    }
+    return map;
+  }, [invoices]);
 
   const setField = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
 
@@ -121,9 +169,9 @@ export default function ClaimsPage() {
       setForm(EMPTY_FORM);
       setPhotoPreview(null);
       setSelectedTemplateId('');
-      toast.success('Claim created');
+      toast.success('Job created');
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Failed to create claim');
+      toast.error(err.response?.data?.error || 'Failed to create job');
     }
   };
 
@@ -173,7 +221,7 @@ export default function ClaimsPage() {
         ? technicians.find((t) => t.id === newWorkerId)?.name
         : null;
       setClaims((cs) => cs.map((c) => (c.id === claimId ? { ...c, ...res.data, assigned_to_name } : c)));
-      toast.success(newWorkerId ? 'Claim reassigned' : 'Claim unassigned');
+      toast.success(newWorkerId ? 'Job reassigned' : 'Job unassigned');
     } catch (err) {
       toast.error(err.response?.data?.error || 'Failed to update assignment');
     } finally {
@@ -181,36 +229,106 @@ export default function ClaimsPage() {
     }
   };
 
-  const filtered = claims
+  const handleGenerateInvoice = async (claim) => {
+    setGeneratingInvoiceFor(claim.id);
+    try {
+      const res = await api.post('/invoices', { claim_id: claim.id });
+      setInvoices((inv) => [res.data, ...inv]);
+      toast.success('Invoice started');
+      navigate(`/invoices/${res.data.id}`);
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to start invoice');
+      setGeneratingInvoiceFor(null);
+    }
+  };
+
+  const serviceOptions = useMemo(
+    () => [...new Set(claims.map((c) => c.type_brand).filter(Boolean))].sort(),
+    [claims]
+  );
+
+  const enriched = useMemo(
+    () => claims.map((c) => ({ ...c, workStatus: getWorkStatus(c, invoicesByClaim[c.id] || []) })),
+    [claims, invoicesByClaim]
+  );
+
+  const tabCounts = useMemo(() => {
+    const counts = { all: enriched.length };
+    for (const key of Object.keys(WORK_STATUS)) counts[key] = 0;
+    for (const c of enriched) counts[c.workStatus] = (counts[c.workStatus] || 0) + 1;
+    return counts;
+  }, [enriched]);
+
+  const filtered = enriched
     .filter((c) =>
       c.claim_number.toLowerCase().includes(search.toLowerCase()) ||
       c.title.toLowerCase().includes(search.toLowerCase()) ||
       (c.customer_name || '').toLowerCase().includes(search.toLowerCase())
     )
-    .filter((c) => !statusFilter || c.status === statusFilter)
+    .filter((c) => {
+      if (statusTab === 'all') return true;
+      if (statusTab === 'in_progress') return c.workStatus === 'in_progress' || c.workStatus === 'scheduled';
+      return c.workStatus === statusTab;
+    })
     .filter((c) => {
       if (!workerFilter) return true;
       if (workerFilter === 'unassigned') return !c.assigned_to;
       return c.assigned_to === workerFilter;
-    });
+    })
+    .filter((c) => !serviceFilter || c.type_brand === serviceFilter);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / ROWS_PER_PAGE));
+  const pageClamped = Math.min(page, totalPages);
+  const pageItems = filtered.slice((pageClamped - 1) * ROWS_PER_PAGE, pageClamped * ROWS_PER_PAGE);
+
+  const actionFor = (claim) => {
+    switch (claim.workStatus) {
+      case 'unassigned':
+        return { label: 'Assign', variant: 'btn-secondary', onClick: () => setReassigningId(claim.id) };
+      case 'needs_review':
+        // The review experience (approve/request changes, parts & labor,
+        // photos) now lives on the job detail page itself, not the raw
+        // invoice page.
+        return { label: 'Review work', variant: 'btn-primary', to: `/claims/${claim.id}` };
+      case 'ready_to_invoice':
+        return { label: generatingInvoiceFor === claim.id ? 'Starting...' : 'Generate invoice', variant: 'btn-primary', onClick: () => handleGenerateInvoice(claim), disabled: generatingInvoiceFor === claim.id };
+      default:
+        return { label: 'Open job', variant: 'btn-secondary', to: `/claims/${claim.id}` };
+    }
+  };
 
   return (
     <div className="claims-page">
       <div className="page-header">
-        <h1>{user.role === 'worker' ? 'My Claims' : 'All Claims'}</h1>
+        <div>
+          <h1>{isWorker ? 'My Jobs' : 'Jobs'}</h1>
+          {!isWorker && <p className="jobs-subtitle">Assign work, review updates and prepare invoices.</p>}
+        </div>
         <div className="page-header-actions">
           {user.role === 'owner' && (
             <div className="tab-toggle">
-              <button className={tab === 'claims' ? 'active' : ''} onClick={() => setTab('claims')}>Claims</button>
+              <button className={tab === 'claims' ? 'active' : ''} onClick={() => setTab('claims')}>Jobs</button>
               <button className={tab === 'templates' ? 'active' : ''} onClick={() => setTab('templates')}>
                 <FileText size={14} /> Templates
               </button>
             </div>
           )}
-          {user.role !== 'worker' && tab === 'claims' && (
-            <button className="btn btn-primary" onClick={() => setShowForm(!showForm)}>
-              <Plus size={16} /> New Claim
-            </button>
+          {!isWorker && tab === 'claims' && (
+            <div className="new-job-menu" ref={newJobMenuRef}>
+              <button className="btn btn-primary" onClick={() => setNewJobMenuOpen((o) => !o)}>
+                <Plus size={16} /> New job <ChevronDown size={14} />
+              </button>
+              {newJobMenuOpen && (
+                <div className="new-job-dropdown">
+                  <button onClick={() => { setNewJobMenuOpen(false); setShowForm(true); requestAnimationFrame(() => photoInputRef.current?.click()); }}>
+                    <FileText size={15} /> From insurance document
+                  </button>
+                  <button onClick={() => { setNewJobMenuOpen(false); setShowForm(true); }}>
+                    <Plus size={15} /> Enter manually
+                  </button>
+                </div>
+              )}
+            </div>
           )}
         </div>
       </div>
@@ -262,12 +380,12 @@ export default function ClaimsPage() {
         </div>
       )}
 
-      {/* Claims tab */}
+      {/* Jobs tab */}
       {tab === 'claims' && (
         <>
           {showForm && (
             <form className="create-form" onSubmit={handleCreate}>
-              <h2>New Service Claim</h2>
+              <h2>New Job</h2>
 
               {/* Template selector */}
               {templates.length > 0 && (
@@ -285,7 +403,7 @@ export default function ClaimsPage() {
                 <input ref={photoInputRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={handlePhotoUpload} style={{ display: 'none' }} />
                 {photoPreview ? (
                   <div className="photo-preview-wrap">
-                    <img src={photoPreview} alt="Claim" className="claim-photo-preview" />
+                    <img src={photoPreview} alt="Job" className="claim-photo-preview" />
                     <div className="photo-preview-info">
                       <div className="photo-preview-label">
                         <Sparkles size={14} />
@@ -297,7 +415,7 @@ export default function ClaimsPage() {
                 ) : (
                   <button type="button" className="photo-upload-btn" onClick={() => photoInputRef.current.click()} disabled={photoLoading}>
                     <Upload size={18} />
-                    <span>Take Photo or Upload Service Form</span>
+                    <span>Upload Insurance Document or Service Form</span>
                     <small>{selectedTemplateId ? `Using: ${templates.find(t => t.id === selectedTemplateId)?.name}` : 'AI will extract all fields automatically'}</small>
                   </button>
                 )}
@@ -341,10 +459,10 @@ export default function ClaimsPage() {
                 </div>
               </div>
 
-              <div className="form-section-label">Service Details</div>
+              <div className="form-section-label">Job Details</div>
               <div className="form-row">
                 <div className="form-group">
-                  <label>Invoice #</label>
+                  <label>Job #</label>
                   <input value={form.claim_number} onChange={setField('claim_number')} placeholder="Auto-generated from photo" />
                 </div>
                 <div className="form-group">
@@ -366,37 +484,49 @@ export default function ClaimsPage() {
 
               <div className="form-actions">
                 <button type="button" className="btn btn-secondary" onClick={handleCancel}>Cancel</button>
-                <button type="submit" className="btn btn-primary" disabled={photoLoading}>Create Claim</button>
+                <button type="submit" className="btn btn-primary" disabled={photoLoading}>Create Job</button>
               </div>
             </form>
           )}
 
           <div className="search-bar">
             <Search size={16} />
-            <input placeholder="Search by invoice #, title, or customer name..." value={search} onChange={(e) => setSearch(e.target.value)} />
+            <input placeholder="Search job, customer or claim #..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
           </div>
 
+          {!isWorker && (
+            <div className="jobs-status-tabs">
+              {TABS.map((t) => (
+                <button
+                  key={t.key}
+                  className={statusTab === t.key ? 'active' : ''}
+                  onClick={() => { setStatusTab(t.key); setPage(1); }}
+                >
+                  {t.label} <span className="jobs-status-tab-count">{tabCounts[t.key] || 0}</span>
+                </button>
+              ))}
+            </div>
+          )}
+
           <div className="claims-filter-bar">
-            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-              <option value="">All statuses</option>
-              <option value="open">Open</option>
-              <option value="in_progress">In Progress</option>
-              <option value="pending_approval">Pending Approval</option>
-              <option value="approved">Approved</option>
-              <option value="rejected">Rejected</option>
-            </select>
-            {user.role !== 'worker' && (
-              <select value={workerFilter} onChange={(e) => setWorkerFilter(e.target.value)}>
+            {!isWorker && (
+              <select value={workerFilter} onChange={(e) => { setWorkerFilter(e.target.value); setPage(1); }}>
                 <option value="">All workers</option>
                 <option value="unassigned">Unassigned only</option>
                 {technicians.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
               </select>
             )}
-            {(statusFilter || workerFilter) && (
+            {serviceOptions.length > 0 && (
+              <select value={serviceFilter} onChange={(e) => { setServiceFilter(e.target.value); setPage(1); }}>
+                <option value="">Service type</option>
+                {serviceOptions.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+            )}
+            {(workerFilter || serviceFilter || statusTab !== 'all') && (
               <button
                 type="button"
                 className="claims-filter-clear"
-                onClick={() => { setStatusFilter(''); setWorkerFilter(''); }}
+                onClick={() => { setWorkerFilter(''); setServiceFilter(''); setStatusTab('all'); setPage(1); }}
               >
                 Clear filters
               </button>
@@ -405,50 +535,113 @@ export default function ClaimsPage() {
 
           {loading ? <p>Loading...</p> : (
             <div className="claims-table-wrap">
-              <table className="claims-table">
+              <table className="claims-table jobs-table">
                 <thead>
                   <tr>
-                    <th>Invoice #</th>
-                    <th>Customer</th>
-                    <th>Appliance</th>
-                    <th>Assigned To</th>
-                    <th>Status</th>
-                    <th>Date</th>
-                    <th></th>
+                    <th>Job / customer</th>
+                    <th>Service</th>
+                    {!isWorker && <th>Assigned to</th>}
+                    <th>Appointment</th>
+                    <th>Work status</th>
+                    <th>Action</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map((c) => (
-                    <tr key={c.id}>
-                      <td><span className="claim-num-link">{c.claim_number}</span></td>
-                      <td>{c.customer_name || c.title}</td>
-                      <td>{c.type_brand || <span className="unassigned">—</span>}</td>
-                      <td>
-                        {user.role === 'worker' ? (
-                          c.assigned_to_name || <span className="unassigned">Unassigned</span>
-                        ) : (
-                          <select
-                            className="reassign-select"
-                            value={c.assigned_to || ''}
-                            disabled={reassigningId === c.id}
-                            onChange={(e) => handleReassign(c.id, e.target.value)}
-                          >
-                            <option value="">Unassigned</option>
-                            {technicians.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-                          </select>
+                  {pageItems.map((c) => {
+                    const status = WORK_STATUS[c.workStatus];
+                    const action = actionFor(c);
+                    return (
+                      <tr key={c.id}>
+                        <td>
+                          <Link to={`/claims/${c.id}`} className="claim-num-link">{c.claim_number}</Link>
+                          <div className="jobs-customer-sub">{c.customer_name || c.title}</div>
+                        </td>
+                        <td>{c.type_brand || <span className="unassigned">—</span>}</td>
+                        {!isWorker && (
+                          <td>
+                            {reassigningId === c.id ? (
+                              <select
+                                className="reassign-select"
+                                value={c.assigned_to || ''}
+                                autoFocus
+                                onBlur={() => setReassigningId(null)}
+                                onChange={(e) => handleReassign(c.id, e.target.value)}
+                              >
+                                <option value="">Unassigned</option>
+                                {technicians.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                              </select>
+                            ) : (
+                              <button type="button" className="jobs-assignee" onClick={() => setReassigningId(c.id)}>
+                                {c.assigned_to_name ? (
+                                  <span className="jobs-avatar">{initials(c.assigned_to_name)}</span>
+                                ) : (
+                                  <span className="jobs-avatar jobs-avatar-empty"><User size={13} /></span>
+                                )}
+                                {c.assigned_to_name || <span className="unassigned">Unassigned</span>}
+                              </button>
+                            )}
+                          </td>
                         )}
-                      </td>
-                      <td><span className={`status-badge status-${c.status}`}>{c.status.replace('_', ' ')}</span></td>
-                      <td>{c.date_of_service ? new Date(c.date_of_service).toLocaleDateString() : new Date(c.created_at).toLocaleDateString()}</td>
-                      <td><Link to={`/claims/${c.id}`} className="btn btn-sm btn-secondary">View</Link></td>
-                    </tr>
-                  ))}
-                  {filtered.length === 0 && (
-                    <tr><td colSpan={7} className="empty-cell">No claims found</td></tr>
+                        <td>{c.date_of_service ? new Date(c.date_of_service).toLocaleDateString() : new Date(c.created_at).toLocaleDateString()}</td>
+                        <td><span className={`work-status-badge work-status-${status.tone}`}>{status.label}</span></td>
+                        <td>
+                          <div className="jobs-action-cell">
+                            {action.to ? (
+                              <Link to={action.to} className={`btn btn-sm ${action.variant}`}>{action.label}</Link>
+                            ) : (
+                              <button className={`btn btn-sm ${action.variant}`} onClick={action.onClick} disabled={action.disabled}>{action.label}</button>
+                            )}
+                            <Link to={`/claims/${c.id}`} className="btn-icon jobs-more-btn" title="Open job" aria-label="Open job">
+                              <MoreHorizontal size={16} />
+                            </Link>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {pageItems.length === 0 && (
+                    <tr><td colSpan={isWorker ? 5 : 6} className="empty-cell">No jobs found</td></tr>
                   )}
                 </tbody>
               </table>
             </div>
+          )}
+
+          {filtered.length > 0 && (
+            <div className="jobs-pagination">
+              <span className="jobs-pagination-count">
+                {(pageClamped - 1) * ROWS_PER_PAGE + 1}–{Math.min(pageClamped * ROWS_PER_PAGE, filtered.length)} of {filtered.length} jobs
+              </span>
+              <div className="jobs-pagination-controls">
+                <button className="btn btn-sm btn-secondary" disabled={pageClamped <= 1} onClick={() => setPage(pageClamped - 1)}>Previous</button>
+                <span className="jobs-pagination-page">{pageClamped} / {totalPages}</span>
+                <button className="btn btn-sm btn-secondary" disabled={pageClamped >= totalPages} onClick={() => setPage(pageClamped + 1)}>Next</button>
+              </div>
+            </div>
+          )}
+
+          {!isWorker && (
+            <section className="jobs-activity-card">
+              <div className="jobs-activity-header">
+                <span><MessageSquare size={16} /> Latest worker updates</span>
+              </div>
+              {activity.length === 0 ? (
+                <p className="empty-msg">No recent activity.</p>
+              ) : (
+                <div className="jobs-activity-list">
+                  {activity.map((entry) => (
+                    <div key={entry.id} className="jobs-activity-row">
+                      <span className="jobs-avatar">{initials(entry.performed_by_name)}</span>
+                      <span className="jobs-activity-text">
+                        <strong>{entry.performed_by_name || 'Someone'}</strong> {eventLabel(entry).toLowerCase()}
+                        {eventDetails(entry) && <span className="jobs-activity-detail"> — {eventDetails(entry)}</span>}
+                      </span>
+                      <span className="jobs-activity-time">{new Date(entry.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
           )}
         </>
       )}

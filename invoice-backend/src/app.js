@@ -15,6 +15,7 @@ const onboardingRoutes = require('./routes/onboarding');
 const invoiceFieldTemplateRoutes = require('./routes/invoiceFieldTemplates');
 const invoiceLineItemRoutes = require('./routes/invoiceLineItems');
 const documentsRoutes = require('./routes/documents');
+const documentTemplateRoutes = require('./routes/documentTemplates');
 
 const app = express();
 
@@ -126,6 +127,7 @@ app.use('/api/onboarding', onboardingRoutes);
 app.use('/api/invoice-field-templates', invoiceFieldTemplateRoutes);
 app.use('/api/invoice-line-items', invoiceLineItemRoutes);
 app.use('/api/documents', documentsRoutes);
+app.use('/api/document-templates', documentTemplateRoutes);
 
 app.use((err, req, res, next) => {
   console.error(err.stack);
