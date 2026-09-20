@@ -25,6 +25,7 @@ export default function InvoiceDetailPage() {
   const [techNotes, setTechNotes] = useState('');
   const [form, setForm] = useState({ model_number: '', serial_number: '', issue_description: '' });
   const [suggestedParts, setSuggestedParts] = useState([]);
+  const [addingPartIndex, setAddingPartIndex] = useState(null);
   const [fieldValues, setFieldValues] = useState({});
   const [templates, setTemplates] = useState([]);
   const [pdfLoading, setPdfLoading] = useState(false);
@@ -192,6 +193,31 @@ export default function InvoiceDetailPage() {
       toast.error(err.response?.data?.error || 'Parts suggestion failed');
     } finally {
       setAiPartsLoading(false);
+    }
+  };
+
+  // Adds one AI-suggested part to the invoice via the canonical /api/parts
+  // endpoint (same one the manual "Add Part" form in PartsSection uses) —
+  // /invoices/:id/parts never existed as a route. addingPartIndex disables
+  // just the clicked row's button so a repeated click can't fire a second
+  // request for the same suggestion while the first is still in flight.
+  const handleAddSuggestedPart = async (part, index) => {
+    setAddingPartIndex(index);
+    try {
+      await api.post('/parts', {
+        invoice_id: id,
+        name: part.name,
+        part_number: part.part_number,
+        quantity: part.quantity,
+        notes: part.notes,
+      });
+      setSuggestedParts((s) => s.filter((_, idx) => idx !== index));
+      load();
+      toast.success('Part added');
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to add part');
+    } finally {
+      setAddingPartIndex(null);
     }
   };
 
@@ -398,7 +424,7 @@ export default function InvoiceDetailPage() {
           <div className="parts-header">
             <h2>Parts</h2>
             {isEditable && (
-              <button className="btn btn-ai btn-sm" onClick={handleAiParts} disabled={aiPartsLoading}>
+              <button className="btn btn-ai btn-sm" data-testid="suggest-parts-btn" onClick={handleAiParts} disabled={aiPartsLoading}>
                 <Sparkles size={14} />
                 {aiPartsLoading ? 'Searching...' : 'AI Suggest Parts'}
               </button>
@@ -433,21 +459,11 @@ export default function InvoiceDetailPage() {
                   </div>
                   <button
                     className="btn btn-sm btn-primary"
-                    onClick={async () => {
-                      try {
-                        await api.post(`/invoices/${id}/parts`, {
-                          name: p.name,
-                          part_number: p.part_number,
-                          quantity: p.quantity,
-                          notes: p.notes,
-                        });
-                        setSuggestedParts((s) => s.filter((_, idx) => idx !== i));
-                        load();
-                        toast.success('Part added');
-                      } catch { toast.error('Failed to add part'); }
-                    }}
+                    data-testid={`add-suggested-part-${i}`}
+                    onClick={() => handleAddSuggestedPart(p, i)}
+                    disabled={addingPartIndex !== null}
                   >
-                    Add
+                    {addingPartIndex === i ? 'Adding...' : 'Add'}
                   </button>
                 </div>
                 );
