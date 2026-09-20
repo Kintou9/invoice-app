@@ -9,12 +9,28 @@ const { sendInviteEmail } = require('../services/email');
 const { logAction } = require('../services/auditLog');
 const { deleteBlob, generateSasUrl } = require('../services/azureBlob');
 const { hashToken } = require('../utils/tokenHash');
+const { createLimiter } = require('../middleware/rateLimit');
 
 const INVITE_EXPIRY_DAYS_ALLOWED = [7, 14, 30];
 const DEFAULT_INVITE_EXPIRY_DAYS = 7;
 const INVITABLE_ROLES = ['manager', 'worker', 'viewer'];
 
 const router = express.Router();
+
+// Invite creation/resend both send a real email to a third party — the
+// global 300/15min limiter is shared with all of an account's other API
+// traffic, so on its own it doesn't stop an account from being used to
+// blast invite emails. Same budget as authLimiter's auth-endpoint bucket.
+// Keyed by organization, not IP: this route always runs after authenticate,
+// so req.user is populated, and several employees at the same company
+// legitimately share one office IP — an IP-keyed limit would let any one
+// of them exhaust the whole office's invite budget, or falsely throttle a
+// different employee who never sent an invite at all.
+const inviteLimiter = createLimiter({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  keyGenerator: (req) => req.user.organizationId,
+});
 
 // A membership row addressed by its *user* id, scoped to the caller's own
 // org — every mutating route below looks the target up this way first so
@@ -139,7 +155,7 @@ router.get('/technicians', authenticate, authorize('owner', 'manager'), async (r
 // gets a real invite email with a link to set their name and password.
 // 'owner' is never an invitable role — the only way to become owner is the
 // dedicated transfer-ownership workflow below.
-router.post('/', authenticate, authorize('owner', 'manager'), async (req, res, next) => {
+router.post('/', authenticate, authorize('owner', 'manager'), inviteLimiter, async (req, res, next) => {
   try {
     const { email, role, message, expires_in_days } = req.body;
     if (!email || !role) {
@@ -223,7 +239,7 @@ router.post('/', authenticate, authorize('owner', 'manager'), async (req, res, n
 // POST /api/users/:id/resend-invite — owner/manager resends an invite email
 // with a fresh token (also re-extends the expiry) — the old token stops
 // working immediately since it's overwritten, not merely superseded.
-router.post('/:id/resend-invite', authenticate, authorize('owner', 'manager'), async (req, res, next) => {
+router.post('/:id/resend-invite', authenticate, authorize('owner', 'manager'), inviteLimiter, async (req, res, next) => {
   try {
     const inviteToken = crypto.randomBytes(32).toString('hex');
     const inviteExpiresAt = new Date(Date.now() + DEFAULT_INVITE_EXPIRY_DAYS * 24 * 60 * 60 * 1000);
