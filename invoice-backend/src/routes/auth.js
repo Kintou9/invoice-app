@@ -465,6 +465,11 @@ router.post('/change-password', authenticate, async (req, res, next) => {
     if (!currentPassword || !newPassword) {
       return res.status(400).json({ error: 'Both passwords required' });
     }
+    // Same minimum accept-invite and reset-password already enforce —
+    // this route was the one path that didn't.
+    if (newPassword.length < 8) {
+      return res.status(400).json({ error: 'New password must be at least 8 characters' });
+    }
 
     const { rows } = await db.query('SELECT * FROM users WHERE id = $1', [req.user.id]);
     const user = rows[0];

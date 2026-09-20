@@ -23,8 +23,11 @@ jest.mock('../src/services/claude', () => {
     suggestParts: unexpected, extractClaimInfo: unexpected };
 });
 jest.mock('../src/services/email', () => {
-  const unexpected = jest.fn(() => { throw new Error('Unexpected email send'); });
-  return { sendInviteEmail: unexpected, sendPasswordResetEmail: unexpected };
+  // Two independent functions — same "shared mock instance" bug already
+  // fixed for azureBlob above; each needs its own jest.fn() or mocking one
+  // silently overwrites the other's queued/default behavior.
+  const unexpected = () => jest.fn(() => { throw new Error('Unexpected email send'); });
+  return { sendInviteEmail: unexpected(), sendPasswordResetEmail: unexpected() };
 });
 
 const blocked = () => { throw new Error('Network access is forbidden in backend tests'); };
