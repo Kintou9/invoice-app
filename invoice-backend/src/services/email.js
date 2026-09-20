@@ -1,6 +1,19 @@
 const { Resend } = require('resend');
 const config = require('../config');
 
+// inviterName/organizationName/message are all user-controlled (set at
+// registration or typed into the invite form) and land directly in HTML
+// email bodies below — escape before interpolating so a name like
+// "<img src=x onerror=...>" can't inject markup into the sent email.
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 let _client = null;
 const getClient = () => {
   if (!_client) {
@@ -18,13 +31,17 @@ const getClient = () => {
  */
 async function sendInviteEmail({ to, organizationName, inviterName, role, inviteUrl, message, expiresInDays = 7 }) {
   const client = getClient();
+  const safeInviter = escapeHtml(inviterName);
+  const safeOrg = escapeHtml(organizationName);
+  const safeRole = escapeHtml(role);
+  const safeMessage = escapeHtml(message);
   const { error } = await client.emails.send({
     from: config.resend.fromEmail,
     to,
     subject: `${inviterName} invited you to join ${organizationName} on Trackly`,
     html: `
-      <p>${inviterName} has invited you to join <strong>${organizationName}</strong> on Trackly as a <strong>${role}</strong>.</p>
-      ${message ? `<p>"${message}"</p>` : ''}
+      <p>${safeInviter} has invited you to join <strong>${safeOrg}</strong> on Trackly as a <strong>${safeRole}</strong>.</p>
+      ${message ? `<p>"${safeMessage}"</p>` : ''}
       <p><a href="${inviteUrl}">Accept the invitation</a> to set up your account.</p>
       <p>This link expires in ${expiresInDays} day${expiresInDays === 1 ? '' : 's'}.</p>
     `,

@@ -381,3 +381,57 @@ describe('DELETE /api/users/:id/avatar — moderation', () => {
     expect(res.status).toBe(404);
   });
 });
+
+// Rate limiting is skipped entirely under NODE_ENV=test (tests/setup.js's
+// db mock would need real request-by-request state otherwise) — these
+// tests flip NODE_ENV for their own duration only, so the limiter's
+// skip check (which re-reads it live per request, not once at module
+// load) actually engages, then restore it so every other test in this
+// file keeps running unthrottled as normal.
+describe('invite rate limiting — org-keyed, not IP-keyed', () => {
+  const originalEnv = process.env.NODE_ENV;
+  afterEach(() => { process.env.NODE_ENV = originalEnv; });
+
+  test('invite creation returns 429 once the 10-request budget is spent', async () => {
+    process.env.NODE_ENV = 'production';
+    const orgToken = signTestToken({ role: 'owner', organizationId: 'org-ratelimit-create', membershipId: 'm-1' });
+    let lastStatus;
+    for (let i = 0; i < 11; i++) {
+      // Empty body fails validation before any db.query — the limiter
+      // still counts the request regardless of its eventual status.
+      const res = await request(app, { method: 'POST', url: '/api/users', token: orgToken, body: {} });
+      lastStatus = res.status;
+      if (i < 10) expect(res.status).toBe(400);
+    }
+    expect(lastStatus).toBe(429);
+  });
+
+  test('resend-invite returns 429 once the 10-request budget is spent', async () => {
+    process.env.NODE_ENV = 'production';
+    const orgToken = signTestToken({ role: 'owner', organizationId: 'org-ratelimit-resend', membershipId: 'm-2' });
+    let lastStatus;
+    for (let i = 0; i < 11; i++) {
+      const res = await request(app, { method: 'POST', url: '/api/users/some-user-id/resend-invite', token: orgToken });
+      lastStatus = res.status;
+    }
+    expect(lastStatus).toBe(429);
+  });
+
+  test('the limit is keyed by organization, not by IP — a different org is unaffected', async () => {
+    process.env.NODE_ENV = 'production';
+    const orgAToken = signTestToken({ role: 'owner', organizationId: 'org-ratelimit-a', membershipId: 'm-3' });
+    const orgBToken = signTestToken({ role: 'owner', organizationId: 'org-ratelimit-b', membershipId: 'm-4' });
+
+    for (let i = 0; i < 10; i++) {
+      await request(app, { method: 'POST', url: '/api/users', token: orgAToken, body: {} });
+    }
+    const orgABlocked = await request(app, { method: 'POST', url: '/api/users', token: orgAToken, body: {} });
+    expect(orgABlocked.status).toBe(429);
+
+    // Same test harness, same connection/IP as every request above — if
+    // the limiter were IP-keyed this would also be 429. It isn't, because
+    // it's a different organization.
+    const orgBRes = await request(app, { method: 'POST', url: '/api/users', token: orgBToken, body: {} });
+    expect(orgBRes.status).toBe(400); // reached the real handler — not blocked
+  });
+});
